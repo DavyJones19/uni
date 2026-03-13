@@ -18,6 +18,21 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
+## API externa requerida
+
+Crea un archivo `.env.local` con estas variables:
+
+```
+EXTERNAL_GRUPOS_URL="https://tu-api.com/grupos"
+EXTERNAL_ALUMNOS_URL="https://tu-api.com/alumnos"
+# Opcional: GET o POST (default POST)
+EXTERNAL_ALUMNOS_METHOD="POST"
+```
+
+La app usa:
+- `GET /api/grupos` para cargar el combo de grupos.
+- `POST /api/alumnos` para cargar alumnos por `grupo`.
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More
