@@ -8,6 +8,13 @@ const ALUMNOS_METHOD =
 const EXTERNAL_API_TOKEN = process.env.EXTERNAL_API_TOKEN || "";
 const EXTERNAL_API_TOKEN_TYPE = process.env.EXTERNAL_API_TOKEN_TYPE || "Bearer";
 
+const buildAuthHeader = (request: NextRequest) => {
+  const incoming = request.headers.get("authorization");
+  if (incoming) return incoming;
+  if (!EXTERNAL_API_TOKEN) return "";
+  return `${EXTERNAL_API_TOKEN_TYPE} ${EXTERNAL_API_TOKEN}`;
+};
+
 const extractRows = (payload: unknown) => {
   if (!payload) return [];
   if (Array.isArray(payload)) return payload;
@@ -46,10 +53,8 @@ export async function POST(request: NextRequest) {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
-
-    if (EXTERNAL_API_TOKEN) {
-      headers.Authorization = `${EXTERNAL_API_TOKEN_TYPE} ${EXTERNAL_API_TOKEN}`;
-    }
+    const authorization = buildAuthHeader(request);
+    if (authorization) headers.Authorization = authorization;
 
     let init: RequestInit = {
       method: ALUMNOS_METHOD,
