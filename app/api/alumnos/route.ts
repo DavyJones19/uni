@@ -1,6 +1,10 @@
+// POST /api/alumnos — proxy para obtener filas de alumnos según el grupo.
+// Soporta API externa por POST (body JSON) o GET (query o placeholder {grupo} en la URL).
+
 import { NextRequest, NextResponse } from "next/server";
 
 const ALUMNOS_URL = process.env.EXTERNAL_ALUMNOS_URL || "";
+// EXTERNAL_ALUMNOS_METHOD permite forzar GET si la API externa no usa POST.
 const ALUMNOS_METHOD =
   (process.env.EXTERNAL_ALUMNOS_METHOD || "POST").toUpperCase() === "GET"
     ? "GET"
@@ -15,6 +19,7 @@ const buildAuthHeader = (request: NextRequest) => {
   return `${EXTERNAL_API_TOKEN_TYPE} ${EXTERNAL_API_TOKEN}`;
 };
 
+// Muchas APIs envuelven el array en { data }, { rows } o { resultado }.
 const extractRows = (payload: unknown) => {
   if (!payload) return [];
   if (Array.isArray(payload)) return payload;
@@ -36,12 +41,14 @@ export async function POST(request: NextRequest) {
   let grupo = "";
   try {
     const body = await request.json();
+    // ?? solo sustituye null/undefined; || también sustituiría "" (cadena vacía).
     grupo = String(body?.grupo ?? "").trim();
   } catch {
     grupo = "";
   }
 
   if (!grupo) {
+    // 400 Bad Request = el cliente no envió lo mínimo necesario.
     return NextResponse.json(
       { error: "El campo grupo es obligatorio" },
       { status: 400 }
@@ -56,6 +63,7 @@ export async function POST(request: NextRequest) {
     const authorization = buildAuthHeader(request);
     if (authorization) headers.Authorization = authorization;
 
+    // RequestInit es el segundo argumento de fetch (método, headers, body...).
     let init: RequestInit = {
       method: ALUMNOS_METHOD,
       headers,
@@ -73,6 +81,7 @@ export async function POST(request: NextRequest) {
       if (url.includes("{grupo}")) {
         url = url.replace("{grupo}", encodeURIComponent(grupo));
       } else {
+        // Spread ...init mantiene method, headers y signal; añadimos body.
         init = {
           ...init,
           body: JSON.stringify({ grupo }),
@@ -96,7 +105,7 @@ export async function POST(request: NextRequest) {
     const data = await response.json();
     const rows = extractRows(data);
     return NextResponse.json({ data: rows }, { status: 200 });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: "Error al conectar con la API externa de alumnos" },
       { status: 500 }

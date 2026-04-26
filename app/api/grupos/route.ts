@@ -1,9 +1,14 @@
+// GET /api/grupos — proxy hacia la API externa de listado de grupos.
+// La autenticación puede venir del header Authorization del navegador o de variables .env.
+
 import { NextRequest, NextResponse } from "next/server";
 
 const GRUPOS_URL = process.env.EXTERNAL_GRUPOS_URL || "";
 const EXTERNAL_API_TOKEN = process.env.EXTERNAL_API_TOKEN || "";
 const EXTERNAL_API_TOKEN_TYPE = process.env.EXTERNAL_API_TOKEN_TYPE || "Bearer";
 
+// Prioridad: si el cliente envía Authorization, úsalo (token del login del usuario).
+// Si no, opcionalmente usa token fijo del .env (útil en pruebas o APIs sin login por usuario).
 const buildAuthHeader = (request: NextRequest) => {
   const incoming = request.headers.get("authorization");
   if (incoming) return incoming;
@@ -17,13 +22,20 @@ type GrupoOption = {
   value: string;
 };
 
+// Normaliza respuestas distintas (array puro, { data: [...] }, items string/objeto).
 const normalizeGroups = (payload: unknown): GrupoOption[] => {
-  const raw = (payload as any)?.data ?? payload;
+  const raw =
+    payload !== null &&
+    payload !== undefined &&
+    typeof payload === "object" &&
+    "data" in payload
+      ? (payload as Record<string, unknown>)["data"]
+      : payload;
   if (!raw) return [];
 
   const values = Array.isArray(raw) ? raw : [];
 
-  return values
+  const mapped = values
     .map((item) => {
       if (item === null || item === undefined) return null;
       if (typeof item === "string" || typeof item === "number") {
@@ -46,9 +58,18 @@ const normalizeGroups = (payload: unknown): GrupoOption[] => {
       }
       return null;
     })
+    // Type predicate: le dice a TS que tras el filter solo quedan GrupoOption, no null.
     .filter((item): item is GrupoOption => Boolean(item));
+
+  const seen = new Set<string>();
+  return mapped.filter((item) => {
+    if (seen.has(item.value)) return false;
+    seen.add(item.value);
+    return true;
+  });
 };
 
+// GET: el navegador hace fetch("/api/grupos", { headers: { Authorization } })
 export async function GET(request: NextRequest) {
   if (!GRUPOS_URL) {
     return NextResponse.json(
@@ -83,8 +104,9 @@ export async function GET(request: NextRequest) {
 
     const data = await response.json();
     const grupos = normalizeGroups(data);
+    // Formato unificado para el cliente: siempre { data: [...] }
     return NextResponse.json({ data: grupos }, { status: 200 });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: "Error al conectar con la API externa de grupos" },
       { status: 500 }

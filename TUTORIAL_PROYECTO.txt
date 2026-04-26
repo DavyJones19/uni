@@ -1,0 +1,341 @@
+================================================================================
+  TUTORIAL DEL PROYECTO — my-next-api (Next.js App Router)
+  Cómo leer este archivo: busca el nombre del archivo y la sección "Líneas".
+  Los números de línea de abajo son orientativos (pueden desplazarse si cambias el código).
+
+  AUTOAPRENDIZAJE: Los archivos fuente incluyen comentarios didácticos en español:
+  app/page.tsx, components/LoginForm.tsx, GrupoSelector.tsx, TablaAlumnos.tsx,
+  DataTablePriority.tsx, y app/api/login|grupos|alumnos/route.ts.
+  Para estudiar, abre esos archivos en el editor: las explicaciones van junto al código.
+================================================================================
+
+--- Conceptos rápidos (antes de los archivos) ---
+
+• Next.js App Router: carpetas bajo `app/` definen rutas. `app/page.tsx` = ruta "/".
+• Client Component: archivo con "use client" — React corre en el navegador (hooks, clicks).
+• Route Handler: `app/api/.../route.ts` — funciones GET/POST que corren en el SERVIDOR
+  (Node). Ahí puedes usar variables de entorno secretas y llamar APIs externas.
+• Arrow function (función flecha): `const suma = (a, b) => a + b` — forma corta de
+  funciones, útil como callback (p. ej. `.map(x => x * 2)`).
+• async/await: `async function f() { const r = await fetch(...) }` — await espera
+  la Promise sin bloquear la interfaz en el cliente.
+• TypeScript `type` / `interface`: describen formas de datos para el compilador.
+• Paginación (en este proyecto): los alumnos llegan todos en un array desde la API;
+  la tabla **parte el array en el cliente** (`slice`) y muestra "Mostrando X–Y de Z"
+  y "Página N de M". No es paginación en el servidor (no hay `?page=` en la API).
+
+================================================================================
+ARCHIVO: package.json
+================================================================================
+Propósito: metadatos del proyecto, dependencias y scripts (`pnpm dev`, `pnpm build`).
+
+Líneas típicas:
+  - "dependencies": next, react, react-dom — framework y UI.
+  - "devDependencies": eslint, typescript, tailwind — herramientas de desarrollo.
+  - "scripts.dev": ejecuta `next dev` (servidor de desarrollo en localhost).
+
+================================================================================
+ARCHIVO: tsconfig.json
+================================================================================
+Propósito: reglas del compilador TypeScript y cómo Next integra tipos.
+
+Líneas (referencia):
+  1-4   "target" / "lib": versión de JS generada y APIs disponibles (DOM, etc.).
+  7     "strict": true — más comprobaciones de tipos (recomendado).
+  14    "jsx": "react-jsx" — transforma JSX sin importar React en cada archivo.
+  16-19 Plugin "next" — tipos específicos del framework.
+  21-23 "paths": "@/*" → importaciones tipo `@/components/...` (si las usas).
+  25-31 "include": qué archivos compilar; incluye tipos generados en `.next`.
+
+================================================================================
+ARCHIVO: next.config.ts
+================================================================================
+Propósito: configuración de Next.js (imágenes, redirecciones, experimental, etc.).
+
+Líneas:
+  3-5   `nextConfig` vacío por ahora; aquí irían opciones oficiales de Next.
+
+================================================================================
+ARCHIVO: postcss.config.mjs
+================================================================================
+Propósito: PostCSS procesa el CSS; aquí se enchufa Tailwind v4.
+
+Líneas:
+  1-5   `plugins["@tailwindcss/postcss"]` — Tailwind se aplica al compilar estilos.
+
+================================================================================
+ARCHIVO: eslint.config.mjs
+================================================================================
+Propósito: reglas de ESLint (calidad y buenas prácticas).
+
+Líneas:
+  1-7   Extiende `eslint-config-next` (Core Web Vitals + TypeScript).
+  9-14  `globalIgnores`: no lintear `.next`, `out`, etc.
+
+================================================================================
+ARCHIVO: app/layout.tsx
+================================================================================
+Propósito: layout raíz — envuelve TODAS las páginas. Metadatos SEO y fuentes.
+
+Líneas:
+  1     `import type { Metadata }` — solo tipos, no genera código en runtime.
+  2-3   Fuentes Geist desde `next/font/google` (optimización automática).
+  3     `import "./globals.css"` — estilos globales.
+  15-18 `metadata`: título y descripción para <head>.
+  20-33 `RootLayout`: componente que recibe `children` (cada página).
+  22    `Readonly<{ children: ... }>` — tipado de props de solo lectura.
+  26-31 <html lang="en"> y <body> con variables CSS de fuentes + antialiased.
+
+================================================================================
+ARCHIVO: app/globals.css
+================================================================================
+Propósito: CSS global + integración Tailwind v4.
+
+Líneas:
+  1     `@import "tailwindcss"` — incluye el framework de utilidades.
+  3-6   Variables CSS en :root (colores base).
+  8-13  `@theme inline` — mapea tokens para Tailwind (fuentes, colores).
+  15-19 Media query dark — ajusta variables si el SO prefiere modo oscuro.
+  22-26 body: fondo, color y fuente por defecto.
+  28-34 Reglas para ocultar badges/indicadores de Next en desarrollo (opcional).
+
+================================================================================
+ARCHIVO: app/page.tsx  (página principal — Client Component)
+================================================================================
+Hay comentarios didácticos también en el propio código fuente.
+
+"use client" — marca el archivo como Client Component (sin esto, no usarías
+  useState/useEffect en este archivo).
+
+Imports: React, `LoginForm`, `GrupoSelector`, `TablaAlumnos`, y el **tipo**
+  `ColumnDef` desde `DataTablePriority` para tipar los arrays de columnas.
+
+`type RowData = Record<string, unknown>` — cada fila es un objeto con claves string.
+
+`renderNombreCompleto(row)` — función reutilizada en las columnas "Nombre completo"
+  de la tabla completa y de la vista simple (evita duplicar lógica).
+
+`RESUMEN_PDF_URL` + `handleDescargarResumen(row)` — abre en nueva pestaña el PDF
+  `https://mistalentos.mx/FORMATOS/Talentos_{id_usuario}.pdf` usando `id_usuario`
+  de la fila (el campo puede estar oculto como columna pero sigue en `row`).
+
+`DEFAULT_COLUMNS` — plantilla de la **tabla completa**: Grupo, nombre completo,
+  Usuario, contraseña, correo, fechas, métricas, tests, columna **DESCARGAR RESUMEN**
+  con `render` que muestra un botón solo si `ind_terminado` es 1 / "1" / true.
+
+`DEFAULT_COLUMNS_VISTA_SIMPLE` — plantilla de la **segunda tabla** (demo): solo
+  Grupo y Nombre completo (mismo `renderNombreCompleto`). No incluye PWD ni el
+  botón de resumen: **no se "ocultan" con `HIDDEN_COLUMN_IDS`**, simplemente **no
+  están en esta plantilla**.
+
+`HIDDEN_COLUMN_IDS` — `Set` de **nombres de propiedad** de la API que no quieres
+  como columna automática (ni duplicada). Ej.: `AP`, `AM`, `NOMBRE`, `id_usuario`,
+  `ind_terminado`, etc. No borra datos del objeto `row`; el `render` del botón
+  y `renderNombreCompleto` siguen leyendo esos campos. **Las dos tablas pueden
+  compartir el mismo `Set`**: no "chocan" porque `buildColumns` se llama dos veces
+  y solo **lee** el Set; cada llamada devuelve un **array de columnas distinto**.
+
+`buildColumns(rows, defaults, hidden, incluirExtras?)`
+  • A partir de `defaults` arma `fromConfig` (map con `accessorKey`, filter por
+    `hidden`).
+  • Si **`incluirExtras` es false** (vista simple): devuelve **solo** `fromConfig`.
+    Ahí es por lo que no aparecen PWD ni columnas extra: **no están en `defaults`**
+    y no se añaden extras.
+  • Si **`incluirExtras` es true** (tabla completa): además añade columnas extra
+    por claves de `rows[0]` que no estén en `existingIds` ni en `hidden`.
+
+`normalizeClientGroups`
+  Convierte respuestas heterogéneas (string, número, objeto) a `GrupoOption[]`.
+  `??` (nullish coalescing): usa el valor de la derecha solo si la izquierda es
+  null o undefined.
+  `Set` evita duplicados por `value`.
+
+`export default function Home()` — Next usa este componente en la ruta "/".
+
+  useState — token, grupos, `rows` (alumnos del grupo), flags de carga, error, etc.
+
+  Dos `useMemo` sobre el mismo `rows`:
+    • `columns` = `buildColumns(rows, DEFAULT_COLUMNS, HIDDEN_COLUMN_IDS, true)`
+    • `columnsVistaSimple` = `buildColumns(rows, DEFAULT_COLUMNS_VISTA_SIMPLE, …, false)`
+  Así una sola carga de datos alimenta **dos tablas** con columnas distintas.
+
+  `Boolean(token)` — sesión iniciada o no.
+
+  useEffect(..., [token])
+         Efecto: cuando `token` cambia, si está vacío limpia grupos; si hay token,
+         define `loadGroups` (async), hace fetch a `/api/grupos` con cabecera
+         `Authorization: Bearer ...`, parsea JSON y actualiza estado.
+         `AbortSignal.timeout(30000)` — cancela la petición si pasa de 30 s.
+         `try / catch / finally` — maneja errores y quita loading siempre.
+
+  handleLogin — POST a `/api/login` con `{ Usuario, Pwd }`; lee varias claves
+         posibles de token en la respuesta.
+
+  useCallback `loadRows` — POST a `/api/alumnos` con Bearer; rellena `rows`.
+
+  handleGroupChange / useRef + handleSearchClick — grupo seleccionado y búsqueda.
+
+  JSX (en **este** archivo `page.tsx`, no solo en `TablaAlumnos.tsx`)
+         Sin token → `<LoginForm />`. Con token → `<GrupoSelector />` y **dos**
+         bloques `<section>`: "Tabla completa" con
+         `<TablaAlumnos columns={columns} data={rows} />` y "Vista simple" con
+         `<TablaAlumnos columns={columnsVistaSimple} data={rows} pagination={false} />`.
+         Mismos `rows`, distintas props `columns`. Fragment `<>...</>` agrupa
+         sin un `<div>` extra. Opciones de paginación: ver componente.
+
+================================================================================
+API backend (.NET u otros) y este front
+================================================================================
+Si tienes controladores C# (ej. `UsuariosController.cs`, `PermisosController.cs`)
+en la misma carpeta del repo, son **referencia del backend** .NET: el login Next
+(`/api/login`) y los proxies de alumnos/grupos apuntan a URLs externas vía
+`.env.local`. No forman parte del build de Next.
+
+================================================================================
+ARCHIVO: components/LoginForm.tsx
+================================================================================
+Propósito: formulario presentacional de login (sin lógica de fetch — viene en props).
+
+Líneas:
+  1     "use client" — inputs controlados y eventos requieren cliente.
+  5-6   `import Image from "next/image"` — logo con dimensiones explícitas y optimización.
+        `priority` carga el logo antes (útil si está arriba del todo).
+  8-17  `type LoginFormProps` — contrato de props (usuario, pwd, callbacks).
+  20+   `export function LoginForm` — función nombrada exportada (no default).
+  (ver archivo) onChange={(event) => onUsuarioChange(event.target.value)} — arrow
+        function inline: cada tecla actualiza el estado en el padre vía callback.
+  (ver archivo) Botón: `disabled={loadingLogin}` evita doble envío; texto condicional.
+
+================================================================================
+ARCHIVO: components/GrupoSelector.tsx
+================================================================================
+Propósito: select de grupos + botón Buscar; expone ref al <select> para el padre.
+
+Líneas:
+  5-9   Tipo `GrupoOption` — id, label (texto visible), value (valor del option).
+  21-27 dedupeByValue — filter con Set para quitar duplicados por `value`.
+  30-33 React.forwardRef<HTMLSelectElement, Props> — componente que recibe ref
+        desde el padre (`ref={selectRef}` en page.tsx). La función interna recibe
+        (props, ref) como segundo argumento.
+  45-48 useMemo para lista única de grupos.
+  50-52 Set de valores válidos para corregir si `selectedGroup` ya no existe.
+  54-57 selectValue — si el grupo seleccionado no está en la lista, muestra "".
+  77-81 .map((group, index) => <option key=...>) — lista React necesita `key`.
+
+================================================================================
+ARCHIVO: components/TablaAlumnos.tsx
+================================================================================
+Propósito: envoltorio que aplica estilos y delega en DataTablePriority.
+
+Líneas:
+  Props genéricas `TData extends Record<string, unknown>` — la tabla puede
+        mostrar cualquier objeto fila siempre que sea un registro de strings→unknown.
+  Función genérica `TablaAlumnos<TData>` — reutilizable con distintos tipos.
+  Además de `columns`, `data` y `emptyMessage`, puede recibir (y reenvía a
+  DataTablePriority):
+    • `pagination` — boolean (por defecto true en la tabla interna). Si es false,
+      se listan todas las filas sin barra inferior.
+    • `defaultPageSize` — número de filas por página al cargar (por defecto 10).
+    • `pageSizeOptions` — array de números para el desplegable "Filas por página"
+      (por defecto 5, 10, 25, 50 en DataTablePriority).
+
+================================================================================
+ARCHIVO: components/DataTablePriority.tsx
+================================================================================
+Propósito: tabla HTML con columnas ordenadas por `priority` y columnas extra en
+           fila expandible en móvil/escritorio; **paginación de filas en el cliente**.
+
+Columnas (definición y celdas):
+  ColumnDef<TData> — id, header, accessorKey opcional, render opcional.
+  getRowId — identificador estable por fila (id, ID_USUARIO, etc.) o fallback
+             `row-${index}`. Con paginación, el `index` debe ser el índice **global**
+             en el array `data` (no el índice dentro de la página), para que las
+             `key` de React no se repitan entre páginas.
+  getCellValue — si hay `render`, lo usa; si no, lee la propiedad del row.
+
+Layout responsive de columnas (independiente de la paginación):
+  useState: Set de filas expandidas; isMobile; maxVisible columnas visibles.
+  useEffect en mount: window.innerWidth → maxVisible 3 / 5 / 8 según breakpoints;
+        cleanup del listener resize.
+  orderedColumns — orden por priority; visibleColumns / hiddenColumns — slice.
+  toggleExpanded — abre/cierra celdas ocultas en una segunda fila.
+
+Paginación (props opcionales, ver tipo DataTablePriorityProps):
+  • `pagination` (default true) — si false, `data` completo sin `slice`.
+  • `defaultPageSize` (default 10) — tamaño inicial de página.
+  • `pageSizeOptions` — opciones del <select>; si no se pasa, usa [5, 10, 25, 50].
+
+Estado y efectos ligados a la paginación:
+  • `pageSize` y `currentPage` en useState.
+  • Al cambiar `data` (nueva carga de alumnos), `currentPage` vuelve a 1.
+  • `totalPages` = ceil(total / pageSize); `safePage` acota la página actual al
+    rango válido; otro useEffect ajusta la página si `totalPages` baja (p. ej. al
+    cambiar "filas por página").
+  • `start` / `end` — rango [inclusive] para el texto "Mostrando X–Y de Z".
+  • `paginatedData = data.slice(start, end)` — solo lo que se pinta en el <tbody>.
+  • Barra inferior: texto "Mostrando … de …", "Página N de M", selector de filas
+    por página, botones Anterior / Siguiente.
+
+================================================================================
+ARCHIVO: app/api/login/route.ts
+================================================================================
+Propósito: Route Handler POST — el navegador llama a tu dominio; aquí reenvías el
+           cuerpo a EXTERNAL_LOGIN_URL (servidor a servidor).
+
+Líneas:
+  1     NextRequest/NextResponse — tipos de petición/respuesta del App Router.
+  3-4   LOGIN_URL desde env; isDev para mostrar detalles solo en desarrollo.
+  6     export async function POST — manejador HTTP POST para /api/login.
+  7-15  Si falta URL de entorno → 503 Service Unavailable con mensaje claro.
+  17-22 Parseo JSON del body; catch devuelve objeto vacío si el body no es JSON.
+  25-30 fetch(LOGIN_URL) con POST y timeout 30s.
+  32-42 Si status HTTP error, devuelve cuerpo texto para depuración.
+  45-49 Si OK, intenta JSON.parse; si falla, envuelve texto en { data }.
+  51-61 catch de red — 502 Bad Gateway; en dev añade `details` con el mensaje.
+
+================================================================================
+ARCHIVO: app/api/grupos/route.ts
+================================================================================
+Propósito: GET proxy hacia EXTERNAL_GRUPOS_URL; auth desde cabecera o env.
+
+Líneas:
+  3-5   URLs y token estáticos opcionales desde .env.
+  7-12  buildAuthHeader — prioriza Authorization del cliente; si no, usa env.
+  20-57 normalizeGroups — acepta varias formas de array/objeto y devuelve lista
+        uniforme { id, label, value } sin duplicados.
+  59    export async function GET — ruta GET /api/grupos.
+  67-78 fetch externo con headers y timeout.
+
+================================================================================
+ARCHIVO: app/api/alumnos/route.ts
+================================================================================
+Propósito: POST (o GET según env) para listar alumnos por grupo.
+
+Líneas:
+  3-9   ALUMNOS_URL, método GET o POST, token.
+  18-26 extractRows — saca el array de filas de distintas formas de payload JSON.
+  28    POST handler — el cliente envía { grupo: "..." }.
+  36-48 Validación: grupo obligatorio o 400.
+  59-81 Si método GET: puede sustituir {grupo} en la URL o añadir ?grupo=.
+        Si POST: body JSON { grupo } salvo que la URL lleve placeholder {grupo}.
+  83-98 fetch, error HTTP, éxito con { data: rows }.
+
+================================================================================
+FLUJO RESUMIDO (quién llama a quién)
+================================================================================
+1. Usuario abre "/" → `app/page.tsx` renderiza LoginForm o tablas según token.
+2. Login → fetch `/api/login` → `route.ts` → API externa → token en estado.
+3. Con token → useEffect carga `/api/grupos` → selector se llena.
+4. Elegir grupo / Buscar → fetch `/api/alumnos` → `setRows` → dos `useMemo` generan
+   `columns` y `columnsVistaSimple` → dos `<TablaAlumnos />` con el mismo `rows`.
+   La tabla completa usa paginación en cliente ("X–Y de Z", "Página N de M"); la
+   vista simple puede ir sin paginación (`pagination={false}`).
+
+================================================================================
+NOTA SOBRE NÚMEROS DE LÍNEA
+================================================================================
+Si editas un archivo arriba de una línea citada, las líneas siguientes se desplazan.
+Vuelve a contar en tu editor (VS Code/Cursor muestra número de línea a la izquierda)
+o busca el fragmento de código mencionado en el párrafo.
+
+Fin del tutorial.

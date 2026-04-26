@@ -1,41 +1,111 @@
 "use client";
+// Directiva de Next.js: este módulo es un Client Component (React en el navegador).
+// Sin "use client" no podrías usar useState, useEffect ni eventos de usuario aquí.
 
 import * as React from "react";
-import { DataTablePriority } from "../components/DataTablePriority";
+import { GrupoSelector, type GrupoOption } from "../components/GrupoSelector";
+import { LoginForm } from "../components/LoginForm";
+import { TablaAlumnos } from "../components/TablaAlumnos";
+import type { ColumnDef } from "../components/DataTablePriority";
 
-type GrupoOption = {
-  id: string;
-  label: string;
-  value: string;
-};
-
+// Record<string, unknown> = objeto con claves string y valores de cualquier tipo (desconocido).
 type RowData = Record<string, unknown>;
 
-const DEFAULT_COLUMNS = [
+function renderNombreCompleto(row: RowData) {
+  const nombre = row["NOMBRE"] ?? row["Nombre"];
+  const ap = row["AP"] ?? "";
+  const am = row["AM"] ?? "";
+  return [nombre, ap, am].filter(Boolean).join(" ").trim();
+}
+
+const RESUMEN_PDF_URL = "https://mistalentos.mx/FORMATOS/Talentos_";
+
+function handleDescargarResumen(row: RowData) {
+  const idUser = row["id_usuario"] ?? row["ID_USUARIO"];
+  if (idUser === undefined || idUser === null || String(idUser).trim() === "") {
+    console.warn("[Descargar resumen] Falta id_usuario en la fila.");
+    return;
+  }
+  const url = `${RESUMEN_PDF_URL}${encodeURIComponent(String(idUser).trim())}.pdf`;
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+// Tabla 1 — columnas completas (orden visual = priority).
+const DEFAULT_COLUMNS: ColumnDef<RowData>[] = [
   { id: "GRUPO", header: "Grupo", priority: 1 },
-  { id: "USUARIO", header: "Usuario", priority: 2 },
-  { id: "NOMBRE", header: "Nombre", priority: 3 },
-  { id: "AP", header: "AP", priority: 4 },
-  { id: "AM", header: "AM", priority: 5 },
-  { id: "CORREO", header: "Correo", priority: 6 },
-  { id: "FECHA_REGISTRO", header: "Fecha registro", priority: 7 },
-  { id: "SESION", header: "Sesion", priority: 8 },
-  { id: "TEST_190", header: "Test 190", priority: 9 },
-  { id: "TEST_FINAL", header: "Test final", priority: 10 },
-  { id: "METRICA", header: "Metrica", priority: 11 },
-  { id: "estatus_registrado", header: "Estatus registrado", priority: 12 },
+  {
+    id: "NOMBRE_COMPLETO",
+    header: "Nombre completo",
+    priority: 2,
+    render: renderNombreCompleto,
+  },
+
+
+  { id: "USUARIO", header: "Usuario", priority: 3 },
+  { id: "PWD", header: "Constraseña", priority: 4 },
+  { id: "CORREO", header: "Correo", priority: 5 },
+  { id: "FECHA_REGISTRO", header: "Fecha registro", priority: 6 },
+  { id: "METRICA", header: "Metrica", priority: 7 },
+  { id: "TEST_190", header: "Test 190", priority: 8 },
+  { id: "TEST_FINAL", header: "Test final", priority: 9 },
+  {
+    id: "DESCARGAR_RESUMEN",
+    header: "DESCARGAR RESUMEN",
+    priority: 10,
+    render: (row: RowData) => {
+      const raw = row["ind_terminado"];
+      const terminado =
+        raw === 1 || raw === "1" || raw === true;
+      if (!terminado) return null;
+      return (
+        <button
+          type="button"
+          className="rounded-md border border-sky-600 bg-sky-600 px-2 py-1 text-xs font-medium text-white hover:bg-sky-500"
+          onClick={() => handleDescargarResumen(row)}
+        >
+          Descargar
+        </button>
+      );
+    },
+  },
 ];
 
-const buildColumns = (rows: RowData[]) => {
-  const fromConfig = DEFAULT_COLUMNS.map((col) => ({
-    ...col,
-    accessorKey: col.id,
-  }));
+// Tabla 2 — demo: solo grupo y nombre (mismos `rows`, otra plantilla de columnas).
+const DEFAULT_COLUMNS_VISTA_SIMPLE: ColumnDef<RowData>[] = [
+  { id: "GRUPO", header: "Grupo", priority: 1 },
+  {
+    id: "NOMBRE_COMPLETO",
+    header: "Nombre completo",
+    priority: 2,
+    render: renderNombreCompleto,
+  },
+];
+
+// IDs que la API puede enviar pero no queremos mostrar en la tabla (añade aquí los que falten).
+const HIDDEN_COLUMN_IDS = new Set<string>(["estatus_metrica","AP","AM","NOMBRE","SESION","estatus_registrado","id_usuario","ind_terminado","estatus_190"]);
+
+// Plantilla de columnas + filas + ocultos; `incluirExtras` en false = solo columnas definidas (útil para la 2ª tabla).
+function buildColumns(
+  rows: RowData[],
+  defaults: ColumnDef<RowData>[],
+  hidden: Set<string>,
+  incluirExtras = true
+) {
+  const fromConfig = defaults
+    .map((col) => ({
+      ...col,
+      accessorKey: col.id,
+    }))
+    .filter((col) => !hidden.has(col.id));
+
+  if (!incluirExtras) {
+    return fromConfig;
+  }
 
   const existingIds = new Set(fromConfig.map((col) => col.id));
   const extraKeys = rows.length > 0 ? Object.keys(rows[0]) : [];
   const extraColumns = extraKeys
-    .filter((key) => !existingIds.has(key))
+    .filter((key) => !existingIds.has(key) && !hidden.has(key))
     .map((key) => ({
       id: key,
       header: key,
@@ -44,8 +114,43 @@ const buildColumns = (rows: RowData[]) => {
     }));
 
   return [...fromConfig, ...extraColumns];
-};
+}
 
+// Normaliza lo que venga del fetch de grupos (strings, números u objetos) al tipo GrupoOption.
+function normalizeClientGroups(raw: unknown): GrupoOption[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const out: GrupoOption[] = [];
+  for (const item of raw) {
+    if (item === null || item === undefined) continue;
+    let value = "";
+    let label = "";
+    if (typeof item === "string" || typeof item === "number") {
+      value = String(item).trim();
+      label = value;
+    } else if (typeof item === "object") {
+      const r = item as Record<string, unknown>;
+      const candidate =
+        r.value ??
+        r.Value ??
+        r.GRUPO ??
+        r.grupo ??
+        r.nombre ??
+        r.Nombre ??
+        r.label;
+      value = candidate != null ? String(candidate).trim() : "";
+      const labelRaw =
+        r.label ?? r.Label ?? r.nombre ?? r.Nombre ?? r.GRUPO ?? candidate;
+      label = labelRaw != null ? String(labelRaw).trim() : value;
+    }
+    if (!value || seen.has(value)) continue;
+    seen.add(value);
+    out.push({ id: value, label: label || value, value });
+  }
+  return out;
+}
+
+// Componente de página por defecto en Next (App Router): se muestra en la ruta "/".
 export default function Home() {
   const [groups, setGroups] = React.useState<GrupoOption[]>([]);
   const [selectedGroup, setSelectedGroup] = React.useState("");
@@ -58,26 +163,38 @@ export default function Home() {
   const [loadingRows, setLoadingRows] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  const columns = React.useMemo(() => buildColumns(rows), [rows]);
+  // useMemo: cada tabla tiene su propia lista de columnas a partir del mismo `rows`.
+  const columns = React.useMemo(
+    () => buildColumns(rows, DEFAULT_COLUMNS, HIDDEN_COLUMN_IDS, true),
+    [rows]
+  );
+  const columnsVistaSimple = React.useMemo(
+    () => buildColumns(rows, DEFAULT_COLUMNS_VISTA_SIMPLE, HIDDEN_COLUMN_IDS, false),
+    [rows]
+  );
   const isAuthenticated = Boolean(token);
 
+  // useEffect: efecto secundario tras pintar; aquí carga grupos cuando hay token.
   React.useEffect(() => {
     if (!token) {
       setGroups([]);
+      setSelectedGroup("");
       return;
     }
+    // Función async = devuelve una Promise; await pausa hasta que termine el fetch.
     const loadGroups = async () => {
       try {
         setLoadingGroups(true);
         setError(null);
         const response = await fetch("/api/grupos", {
           headers: { Authorization: `Bearer ${token}` },
+          signal: AbortSignal.timeout(30000),
         });
         if (!response.ok) {
           throw new Error("No se pudieron cargar los grupos.");
         }
         const data = await response.json();
-        setGroups(Array.isArray(data?.data) ? data.data : []);
+        setGroups(normalizeClientGroups(data?.data));
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Error al cargar los grupos."
@@ -90,6 +207,7 @@ export default function Home() {
     loadGroups();
   }, [token]);
 
+  // Manejador del botón Entrar: POST a /api/login (tu backend) que reenvía al login externo.
   const handleLogin = async () => {
     if (!usuario || !pwd) {
       setError("Usuario y password son obligatorios.");
@@ -103,10 +221,18 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ Usuario: usuario, Pwd: pwd }),
       });
+      const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error("No se pudo iniciar sesion.");
+        const apiMsg =
+          typeof data?.error === "string" ? data.error : null;
+        const detail =
+          typeof data?.details === "string" ? ` (${data.details})` : "";
+        throw new Error(
+          apiMsg
+            ? `${apiMsg}${detail}`
+            : `No se pudo iniciar sesion (${response.status}).`
+        );
       }
-      const data = await response.json();
       const tokenValue =
         data?.token ||
         data?.Token ||
@@ -127,8 +253,10 @@ export default function Home() {
     }
   };
 
-  const loadRows = async (grupo: string) => {
-    if (!grupo) return;
+  // useCallback: memoriza la función para que no cambie en cada render si `token` no cambia.
+  const loadRows = React.useCallback(async (grupo: string) => {
+    const g = grupo.trim();
+    if (!g) return;
     try {
       setLoadingRows(true);
       setError(null);
@@ -138,7 +266,7 @@ export default function Home() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ grupo }),
+        body: JSON.stringify({ grupo: g }),
       });
       if (!response.ok) {
         throw new Error("No se pudieron cargar los alumnos.");
@@ -152,6 +280,25 @@ export default function Home() {
     } finally {
       setLoadingRows(false);
     }
+  }, [token]);
+
+  // Al elegir grupo en el <select>, actualiza estado y dispara la carga de alumnos.
+  const handleGroupChange = (value: string) => {
+    setSelectedGroup(value);
+    if (value) {
+      void loadRows(value);
+    } else {
+      setRows([]);
+    }
+  };
+
+  // useRef: referencia mutable al elemento DOM <select> (para leer el valor al pulsar Buscar).
+  const selectRef = React.useRef<HTMLSelectElement>(null);
+
+  // void loadRows: ignora explícitamente la Promise (fire-and-forget); el estado loading lo cubre.
+  const handleSearchClick = () => {
+    const v = selectRef.current?.value?.trim() ?? "";
+    if (v) void loadRows(v);
   };
 
   return (
@@ -177,90 +324,48 @@ export default function Home() {
         )}
 
         {!isAuthenticated ? (
-          <section className="w-full rounded-2xl bg-white px-10 py-12 shadow-sm">
-            <div className="flex flex-col items-center gap-6 text-center">
-              <img
-                src="/logo_nuevo.jpeg"
-                alt="Mistalentos"
-                className="h-12 w-auto"
-              />
-              <div className="space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                  Favor de ingresar el usuario y contrasena que te fueron asignados
-                </p>
-                <div className="h-px w-40 bg-zinc-200" />
-              </div>
-            </div>
-
-            <div className="mt-8 space-y-5 text-left">
-              <label className="block text-sm font-medium text-zinc-700">
-                Usuario
-              </label>
-              <input
-                className="h-11 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm focus:border-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-600/15"
-                placeholder="Usuario"
-                value={usuario}
-                onChange={(event) => setUsuario(event.target.value)}
-              />
-
-              <label className="block text-sm font-medium text-zinc-700">
-                Contrasena
-              </label>
-              <input
-                className="h-11 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm focus:border-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-600/15"
-                placeholder="Contrasena"
-                type="password"
-                value={pwd}
-                onChange={(event) => setPwd(event.target.value)}
-              />
-            </div>
-
-            <button
-              type="button"
-              onClick={handleLogin}
-              disabled={loadingLogin}
-              className="mt-8 h-11 w-full rounded-full bg-sky-600 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {loadingLogin ? "Ingresando..." : "Entrar"}
-            </button>
-
-            {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
-          </section>
+          <LoginForm
+            usuario={usuario}
+            pwd={pwd}
+            onUsuarioChange={setUsuario}
+            onPwdChange={setPwd}
+            onSubmit={handleLogin}
+            loadingLogin={loadingLogin}
+            error={error}
+          />
         ) : (
           <>
-            <section className="flex flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-4">
-              <label className="text-sm font-medium text-zinc-700">Grupo</label>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <select
-                  className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm"
-                  value={selectedGroup}
-                  onChange={(event) => setSelectedGroup(event.target.value)}
-                  disabled={loadingGroups}
-                >
-                  <option value="">Seleccionar grupo</option>
-                  {groups.map((group) => (
-                    <option key={group.id} value={group.value}>
-                      {group.label}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={() => loadRows(selectedGroup)}
-                  disabled={!selectedGroup || loadingRows}
-                  className="h-10 rounded-md border border-zinc-200 bg-zinc-900 px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {loadingRows ? "Cargando..." : "Buscar"}
-                </button>
-              </div>
-              {loadingGroups && (
-                <p className="text-xs text-zinc-500">Cargando grupos...</p>
-              )}
-              {error && <p className="text-sm text-red-600">{error}</p>}
+            <GrupoSelector
+              ref={selectRef}
+              groups={groups}
+              selectedGroup={selectedGroup}
+              onSelectedGroupChange={handleGroupChange}
+              onSearch={handleSearchClick}
+              loadingGroups={loadingGroups}
+              loadingRows={loadingRows}
+              error={error}
+            />
+
+            <section className="space-y-2">
+              <h2 className="text-lg font-semibold text-zinc-800">
+                Tabla completa
+              </h2>
+              <TablaAlumnos columns={columns} data={rows} />
             </section>
 
-            <section className="rounded-lg border border-zinc-200 bg-white p-4">
-              <DataTablePriority columns={columns} data={rows} />
+            <section className="space-y-2">
+              <h2 className="text-lg font-semibold text-zinc-800">
+                Vista simple (solo grupo y nombre)
+              </h2>
+              <p className="text-xs text-zinc-500">
+                Mismos datos que arriba; otra plantilla de columnas y sin columnas
+                extra de la API.
+              </p>
+              <TablaAlumnos
+                columns={columnsVistaSimple}
+                data={rows}
+                pagination={false}
+              />
             </section>
           </>
         )}

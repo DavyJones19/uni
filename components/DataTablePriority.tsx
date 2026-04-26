@@ -2,7 +2,9 @@
 
 import * as React from "react";
 
-type ColumnDef<TData> = {
+// Definición de columna genérica: TData es el tipo de cada fila (objeto).
+// accessorKey: nombre de la propiedad en la fila; render opcional para formatear a mano.
+export type ColumnDef<TData> = {
   id: string;
   header: string;
   accessorKey?: keyof TData | string;
@@ -14,8 +16,16 @@ type DataTablePriorityProps<TData> = {
   columns: Array<ColumnDef<TData>>;
   data: TData[];
   emptyMessage?: string;
+  /** Si es true (por defecto), solo se muestra un subconjunto de filas y la barra de paginación. */
+  pagination?: boolean;
+  /** Tamaño inicial de página; el usuario puede cambiarlo con el selector si hay opciones. */
+  defaultPageSize?: number;
+  /** Valores del desplegable "por página" (por defecto 5, 10, 25, 50). */
+  pageSizeOptions?: number[];
 };
 
+// Obtiene un id estable para React (key) y para el botón expandir.
+// Prueba varias convenciones de API (id, ID_USUARIO...); si no hay, usa el índice.
 const getRowId = (row: Record<string, unknown>, index: number) => {
   const directId =
     row.id ||
@@ -27,9 +37,12 @@ const getRowId = (row: Record<string, unknown>, index: number) => {
   if (directId !== undefined && directId !== null) {
     return String(directId);
   }
+  // index debe ser el índice global en `data` (no solo en la página) para evitar colisiones entre páginas.
   return `row-${index}`;
 };
 
+// Función genérica con <TData,>: el compilador relaciona fila + columna.
+// Si la columna trae render(), la usa; si no, lee row[accessorKey] como texto.
 const getCellValue = <TData,>(
   row: TData,
   column: ColumnDef<TData>
@@ -40,15 +53,54 @@ const getCellValue = <TData,>(
   return value === null || value === undefined ? "" : String(value);
 };
 
+const DEFAULT_PAGE_OPTIONS = [5, 10, 25, 50] as const;
+
 export function DataTablePriority<TData extends Record<string, unknown>>({
   columns,
   data,
   emptyMessage = "Sin resultados.",
+  pagination = true,
+  defaultPageSize = 10,
+  pageSizeOptions,
 }: DataTablePriorityProps<TData>) {
+  const resolvedPageSizes =
+    pageSizeOptions && pageSizeOptions.length > 0
+      ? pageSizeOptions
+      : [...DEFAULT_PAGE_OPTIONS];
+
+  const [pageSize, setPageSize] = React.useState(() =>
+    resolvedPageSizes.includes(defaultPageSize)
+      ? defaultPageSize
+      : resolvedPageSizes[0] ?? 10
+  );
+  const [currentPage, setCurrentPage] = React.useState(1);
+
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [data]);
+
+  const total = data.length;
+  const totalPages = total === 0 ? 1 : Math.ceil(total / pageSize);
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+  const start = total === 0 ? 0 : (safePage - 1) * pageSize;
+  const end = total === 0 ? 0 : Math.min(start + pageSize, total);
+
+  React.useEffect(() => {
+    setCurrentPage((p) => Math.min(Math.max(1, p), totalPages));
+  }, [totalPages]);
+
+  const paginatedData = React.useMemo(() => {
+    if (!pagination) return data;
+    return data.slice(start, end);
+  }, [data, pagination, start, end]);
+
+  // Set<string> guarda qué rowId tienen la fila "expandida" (columnas ocultas visibles).
   const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
   const [isMobile, setIsMobile] = React.useState(false);
+  // Cuántas columnas mostrar en la primera fila (resto van al panel expandible).
   const [maxVisible, setMaxVisible] = React.useState(6);
 
+  // Efecto solo al montar ([]): escucha el ancho de ventana para responsive.
   React.useEffect(() => {
     const updateLayout = () => {
       const width = window.innerWidth;
@@ -67,9 +119,11 @@ export function DataTablePriority<TData extends Record<string, unknown>>({
 
     updateLayout();
     window.addEventListener("resize", updateLayout);
+    // Función de limpieza: se ejecuta al desmontar — quita el listener para no fugas de memoria.
     return () => window.removeEventListener("resize", updateLayout);
   }, []);
 
+  // Ordena columnas por priority (menor = más a la izquierda); empate → orden original.
   const orderedColumns = React.useMemo(() => {
     return [...columns]
       .map((col, index) => ({
@@ -93,6 +147,7 @@ export function DataTablePriority<TData extends Record<string, unknown>>({
     [orderedColumns, maxVisible]
   );
 
+  // Actualización funcional de estado: recibe el estado anterior (prev) y devuelve el nuevo Set.
   const toggleExpanded = (rowId: string) => {
     setExpanded((prev) => {
       const next = new Set(prev);
@@ -104,6 +159,9 @@ export function DataTablePriority<TData extends Record<string, unknown>>({
       return next;
     });
   };
+
+  const showPagination = pagination;
+  const displayPage = safePage;
 
   return (
     <div className="w-full overflow-hidden rounded-lg border border-zinc-200 bg-white">
@@ -129,12 +187,14 @@ export function DataTablePriority<TData extends Record<string, unknown>>({
               </td>
             </tr>
           ) : (
-            data.map((row, index) => {
-              const rowId = getRowId(row, index);
+            (pagination ? paginatedData : data).map((row, index) => {
+              const globalIndex = pagination ? start + index : index;
+              const rowId = getRowId(row, globalIndex);
               const hasHidden = hiddenColumns.length > 0;
               const isExpanded = expanded.has(rowId);
 
               return (
+                // Fragment evita un nodo extra en el DOM; key va en el Fragment en React 16+.
                 <React.Fragment key={rowId}>
                   <tr className="border-t border-zinc-200">
                     <td className="px-3 py-2 align-top">
@@ -185,6 +245,61 @@ export function DataTablePriority<TData extends Record<string, unknown>>({
           )}
         </tbody>
       </table>
+      {showPagination && (
+        <div className="flex flex-col gap-3 border-t border-zinc-200 bg-zinc-50/80 px-3 py-3 text-sm text-zinc-700 sm:flex-row sm:items-center sm:justify-between">
+          <p className="tabular-nums">
+            Mostrando{" "}
+            <span className="font-medium text-zinc-900">
+              {total === 0 ? 0 : start + 1}–{end}
+            </span>{" "}
+            de <span className="font-medium text-zinc-900">{total}</span>
+          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2 text-zinc-600">
+              <span className="whitespace-nowrap">Filas por página</span>
+              <select
+                className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-zinc-900"
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+              >
+                {resolvedPageSizes.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="tabular-nums">
+              Página{" "}
+              <span className="font-semibold text-zinc-900">{displayPage}</span> de{" "}
+              <span className="font-semibold text-zinc-900">{totalPages}</span>
+            </p>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-zinc-800 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={displayPage <= 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              >
+                Anterior
+              </button>
+              <button
+                type="button"
+                className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-zinc-800 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={displayPage >= totalPages}
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
+              >
+                Siguiente
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
