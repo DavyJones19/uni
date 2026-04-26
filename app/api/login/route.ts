@@ -45,6 +45,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ data: text }, { status: 200 });
     }
   } catch {
+    
     return NextResponse.json(
       { error: "Error al conectar con la API externa de login" },
       { status: 500 }
