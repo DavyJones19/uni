@@ -338,4 +338,64 @@ Si editas un archivo arriba de una línea citada, las líneas siguientes se desp
 Vuelve a contar en tu editor (VS Code/Cursor muestra número de línea a la izquierda)
 o busca el fragmento de código mencionado en el párrafo.
 
+================================================================================
+NOTAS RECIENTES
+================================================================================
+• Modal de creación simplificado en `app/page.tsx`:
+  al hacer clic en el botón "Crear" de la tabla, se abre un modal que solo
+  muestra el texto "hola".
+• El modal incluye un botón "Cerrar" para ocultarlo.
+• Se retiró temporalmente la lógica de opciones "Radio/Polígono" para mantener
+  un flujo mínimo de prueba.
+
+El navbar los instalé con shadcn y luego lo metí en el layout
 Fin del tutorial.
+
+
+Guardar el token en local storage en app/page.tsx
+
+ React.useEffect(() => {
+    const savedToken = localStorage.getItem("auth_token");
+    if (savedToken) {
+      setToken(savedToken);
+    }
+  }, []);
+
+
+  
+
+   const tokenValue =
+        data?.token ||
+        data?.Token ||
+        data?.access_token ||
+        data?.accessToken ||
+        data?.data?.token ||
+        "";
+
+
+          const tokenStr = String(tokenValue);
+      setToken(tokenStr);
+      localStorage.setItem("auth_token", tokenStr);
+
+
+
+      Buscar en grupos
+      Al hacer clic en "Buscar", se dispara handleSearchClick:
+app/(dashboard)/catalogos/grupos/page.tsx/catalogos/grupos/page.tsx#L142) extrae selectedGroup.trim()
+
+Llama loadRows(grupo) con ese valor:
+app/(dashboard)/catalogos/grupos/page.tsx/catalogos/grupos/page.tsx#L143)
+
+loadRows hace POST a /api/tabla_grupos con el grupo en el body:
+app/(dashboard)/catalogos/grupos/page.tsx/catalogos/grupos/page.tsx#L121)
+{ "grupo": "el_valor_seleccionado" }
+
+El endpoint /api/tabla_grupos reenvía a tu API externa con ese mismo grupo:
+Tu .env.local tiene EXTERNAL_TABLA_GRUPOS_URL=http://37.27.133.117:8090/api/usuarios/tabla_grupos
+
+Entonces el flujo completo es:
+
+Frontend: selecciona grupo → Buscar
+POST /api/tabla_grupos { grupo }
+Route recibe grupo y lo reenvía a EXTERNAL_TABLA_GRUPOS_URL (por POST por defecto)
+Devuelve filas filtradas

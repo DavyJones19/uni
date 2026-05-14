@@ -96,31 +96,30 @@ export function DataTablePriority<TData extends Record<string, unknown>>({
 
   // Set<string> guarda qué rowId tienen la fila "expandida" (columnas ocultas visibles).
   const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
+  const tableContainerRef = React.useRef<HTMLDivElement | null>(null);
+  const [containerWidth, setContainerWidth] = React.useState(1024);
   const [isMobile, setIsMobile] = React.useState(false);
-  // Cuántas columnas mostrar en la primera fila (resto van al panel expandible).
-  const [maxVisible, setMaxVisible] = React.useState(6);
 
-  // Efecto solo al montar ([]): escucha el ancho de ventana para responsive.
+  // Usa el ancho real del contenedor para decidir cuántas columnas caben sin scroll horizontal.
   React.useEffect(() => {
-    const updateLayout = () => {
-      const width = window.innerWidth;
-      if (width < 640) {
-        setIsMobile(true);
-        setMaxVisible(3);
-        return;
-      }
-      setIsMobile(false);
-      if (width < 1024) {
-        setMaxVisible(5);
-        return;
-      }
-      setMaxVisible(8);
+    const node = tableContainerRef.current;
+    if (!node) return;
+
+    const updateLayout = (width: number) => {
+      setContainerWidth(width);
+      setIsMobile(width < 640);
     };
 
-    updateLayout();
-    window.addEventListener("resize", updateLayout);
-    // Función de limpieza: se ejecuta al desmontar — quita el listener para no fugas de memoria.
-    return () => window.removeEventListener("resize", updateLayout);
+    updateLayout(node.clientWidth);
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      updateLayout(entry.contentRect.width);
+    });
+
+    observer.observe(node);
+    return () => observer.disconnect();
   }, []);
 
   // Ordena columnas por priority (menor = más a la izquierda); empate → orden original.
@@ -136,6 +135,34 @@ export function DataTablePriority<TData extends Record<string, unknown>>({
       )
       .map(({ col }) => col);
   }, [columns]);
+
+  const maxVisible = React.useMemo(() => {
+    if (orderedColumns.length === 0) return 0;
+
+    const expandCellWidth = 56;
+    const horizontalPadding = 24;
+    const availableWidth = Math.max(0, containerWidth - expandCellWidth - horizontalPadding);
+
+    let used = 0;
+    let count = 0;
+
+    for (const col of orderedColumns) {
+      const headerSize = String(col.header ?? col.id).length;
+      const estimatedWidth = Math.min(
+        260,
+        Math.max(col.render ? 140 : 110, headerSize * 8 + 40)
+      );
+
+      if (count === 0 || used + estimatedWidth <= availableWidth) {
+        used += estimatedWidth;
+        count += 1;
+      } else {
+        break;
+      }
+    }
+
+    return Math.min(Math.max(count, 1), orderedColumns.length);
+  }, [orderedColumns, containerWidth]);
 
   const visibleColumns = React.useMemo(
     () => orderedColumns.slice(0, maxVisible),
@@ -164,7 +191,7 @@ export function DataTablePriority<TData extends Record<string, unknown>>({
   const displayPage = safePage;
 
   return (
-    <div className="w-full overflow-hidden rounded-lg border border-zinc-200 bg-white">
+    <div ref={tableContainerRef} className="w-full overflow-hidden rounded-lg border border-zinc-200 bg-white">
       <table className="w-full border-collapse text-sm">
         <thead className="bg-zinc-50 text-left text-zinc-600">
           <tr>
