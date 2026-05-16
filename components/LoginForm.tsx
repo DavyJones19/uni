@@ -4,6 +4,7 @@
 
 import * as React from "react";
 import Image from "next/image";
+import { useState } from "react";
 
 // Tipo de las props: describe qué debe recibir el componente.
 // (value: string) => void = tipo de función que acepta un string y no devuelve nada útil (void).
@@ -20,6 +21,7 @@ type LoginFormProps = {
 // Función nombrada exportada: import { LoginForm } from "..."
 export function LoginForm({
   usuario,
+
   pwd,
   onUsuarioChange,
   onPwdChange,
@@ -27,6 +29,12 @@ export function LoginForm({
   loadingLogin,
   error,
 }: LoginFormProps) {
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      onSubmit();
+    }
+  };
   return (
     <section className="w-full rounded-2xl bg-white px-10 py-12 shadow-sm">
       <div className="flex flex-col items-center gap-6 text-center">
@@ -70,6 +78,7 @@ export function LoginForm({
           type="password"
           value={pwd}
           onChange={(event) => onPwdChange(event.target.value)}
+          onKeyDown={handleKeyPress}
         />
       </div>
 

@@ -1,11 +1,20 @@
 "use client";
 
 import * as React from "react";
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { GrupoSelector, type GrupoOption } from "@/app/(dashboard)/GrupoSelector";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import {
+  GrupoSelector,
+  type GrupoOption,
+} from "@/app/(dashboard)/GrupoSelector";
 import { TablaGrupos } from "@/app/(dashboard)/TablaGrupos";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 
 // --- TIPOS ---
@@ -44,10 +53,9 @@ function BotonEditar({ row, token, onSuccess }: BotonEditarProps) {
       setError(null);
 
       let datos = {
-         tl: "nv_grupos", 
-        id: row.id,             
+        tl: "nv_grupos",
+        id: row.id,
         nombre_g: valorEditado,
-        
       };
 
       const response = await fetch("/api/editar", {
@@ -62,14 +70,14 @@ function BotonEditar({ row, token, onSuccess }: BotonEditarProps) {
       const resData = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        const apiMsg = typeof resData?.error === "string" ? resData.error : null;
+        const apiMsg =
+          typeof resData?.error === "string" ? resData.error : null;
         throw new Error(apiMsg || "Error en la actualización.");
       }
 
       setOpen(false);
       // Notificamos al padre para que actualice la fila localmente
-      onSuccess(row, valorEditado); 
-      
+      onSuccess(row, valorEditado);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -111,10 +119,18 @@ function BotonEditar({ row, token, onSuccess }: BotonEditarProps) {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>
+            <Button
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={loading}
+            >
               Cancelar
             </Button>
-            <Button onClick={handleUpdate} disabled={loading} className="bg-sky-600">
+            <Button
+              onClick={handleUpdate}
+              disabled={loading}
+              className="bg-sky-600"
+            >
               {loading ? "Guardando..." : "Confirmar"}
             </Button>
           </DialogFooter>
@@ -123,8 +139,6 @@ function BotonEditar({ row, token, onSuccess }: BotonEditarProps) {
     </>
   );
 }
-
-
 
 // --- PÁGINA PRINCIPAL ---
 export default function GruposPage() {
@@ -136,12 +150,12 @@ export default function GruposPage() {
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [loadingRows, setLoadingRows] = useState(false);
   const [error, setError] = useState<string | null>(null);
-const handleLimpiarFiltros = () => {
-  setSelectedGroup(""); // Resetea el valor del selector
-  setRows([]);          // Vacía la tabla de resultados
-  setError(null);       // Limpia posibles errores previos
-  // Si tuvieras paginación o filtros de texto adicionales, los reseteas aquí
-};
+  const handleLimpiarFiltros = () => {
+    setSelectedGroup(""); // Resetea el valor del selector
+    setRows([]); // Vacía la tabla de resultados
+    setError(null); // Limpia posibles errores previos
+    // Si tuvieras paginación o filtros de texto adicionales, los reseteas aquí
+  };
   useEffect(() => {
     setIsMounted(true);
     const savedToken = localStorage.getItem("auth_token");
@@ -159,7 +173,10 @@ const handleLimpiarFiltros = () => {
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
-          const apiMsg = typeof data?.error === "string" ? data.error : "Error al cargar grupos";
+          const apiMsg =
+            typeof data?.error === "string"
+              ? data.error
+              : "Error al cargar grupos";
           throw new Error(apiMsg);
         }
         setGroups(data?.data || []);
@@ -175,93 +192,126 @@ const handleLimpiarFiltros = () => {
   }, [token]);
 
   // Actualiza solo la fila editada y sincroniza el combo sin recargar toda la tabla.
-  const applyEditLocally = useCallback((editedRow: RowData, nuevoValor: string) => {
-    const safeNewValue = String(nuevoValor || "").trim();
-    if (!safeNewValue) return;
+  const applyEditLocally = useCallback(
+    (editedRow: RowData, nuevoValor: string) => {
+      const safeNewValue = String(nuevoValor || "").trim();
+      if (!safeNewValue) return;
 
-    const rowId = String(
-      editedRow?.id ?? editedRow?.ID ?? editedRow?.Id ?? editedRow?.id_grupo ?? ""
-    );
-    const previousName = String(
-      editedRow?.nombre_g ?? editedRow?.GRUPO ?? editedRow?.grupo ?? ""
-    ).trim();
+      const rowId = String(
+        editedRow?.id ??
+          editedRow?.ID ??
+          editedRow?.Id ??
+          editedRow?.id_grupo ??
+          "",
+      );
+      const previousName = String(
+        editedRow?.nombre_g ?? editedRow?.GRUPO ?? editedRow?.grupo ?? "",
+      ).trim();
 
-    setRows((prev) =>
-      prev.map((r) => {
-        const currentId = String(
-          r?.id ?? r?.ID ?? r?.Id ?? r?.id_grupo ?? ""
-        );
-        if (rowId && currentId === rowId) {
-          return { ...r, nombre_g: safeNewValue, GRUPO: safeNewValue, grupo: safeNewValue };
-        }
-        if (!rowId && previousName) {
-          const currentName = String(r?.nombre_g ?? r?.GRUPO ?? r?.grupo ?? "").trim();
-          if (currentName === previousName) {
-            return { ...r, nombre_g: safeNewValue, GRUPO: safeNewValue, grupo: safeNewValue };
+      setRows((prev) =>
+        prev.map((r) => {
+          const currentId = String(
+            r?.id ?? r?.ID ?? r?.Id ?? r?.id_grupo ?? "",
+          );
+          if (rowId && currentId === rowId) {
+            return {
+              ...r,
+              nombre_g: safeNewValue,
+              GRUPO: safeNewValue,
+              grupo: safeNewValue,
+            };
           }
+          if (!rowId && previousName) {
+            const currentName = String(
+              r?.nombre_g ?? r?.GRUPO ?? r?.grupo ?? "",
+            ).trim();
+            if (currentName === previousName) {
+              return {
+                ...r,
+                nombre_g: safeNewValue,
+                GRUPO: safeNewValue,
+                grupo: safeNewValue,
+              };
+            }
+          }
+          return r;
+        }),
+      );
+
+      setGroups((prev) =>
+        prev.map((g) => {
+          const matchById = rowId && String(g.id) === rowId;
+          const matchByName =
+            previousName &&
+            (g.value === previousName || g.label === previousName);
+          if (!matchById && !matchByName) return g;
+          return {
+            ...g,
+            label: safeNewValue,
+            value: safeNewValue,
+          };
+        }),
+      );
+
+      setSelectedGroup((prev) => (prev === previousName ? safeNewValue : prev));
+    },
+    [],
+  );
+
+  const loadRows = useCallback(
+    async (grupo: string) => {
+      if (!token) return;
+      try {
+        setLoadingRows(true);
+        setError(null);
+        const response = await fetch("/api/tabla_grupos", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ grupo: grupo.trim() }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          const apiMsg =
+            typeof data?.error === "string"
+              ? data.error
+              : "Error al cargar filas";
+          throw new Error(apiMsg);
         }
-        return r;
-      })
-    );
-
-    setGroups((prev) =>
-      prev.map((g) => {
-        const matchById = rowId && String(g.id) === rowId;
-        const matchByName = previousName && (g.value === previousName || g.label === previousName);
-        if (!matchById && !matchByName) return g;
-        return {
-          ...g,
-          label: safeNewValue,
-          value: safeNewValue,
-        };
-      })
-    );
-
-    setSelectedGroup((prev) => (prev === previousName ? safeNewValue : prev));
-  }, []);
-
-  const loadRows = useCallback(async (grupo: string) => {
-    if (!token) return;
-    try {
-      setLoadingRows(true);
-      setError(null);
-      const response = await fetch("/api/tabla_grupos", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ grupo: grupo.trim() }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        const apiMsg = typeof data?.error === "string" ? data.error : "Error al cargar filas";
-        throw new Error(apiMsg);
+        setRows(data?.data || []);
+      } catch (err: any) {
+        setRows([]);
+        setError(err?.message || "Error al cargar filas");
+      } finally {
+        setLoadingRows(false);
       }
-      setRows(data?.data || []);
-    } catch (err: any) {
-      setRows([]);
-      setError(err?.message || "Error al cargar filas");
-    } finally {
-      setLoadingRows(false);
-    }
-  }, [token]);
+    },
+    [token],
+  );
 
   // Definición de columnas dentro del componente para acceder a 'updateLocalRow'
-  const columns = useMemo(() => [
-    { id: "GRUPO", header: "Grupo", priority: 1 },
-    { id: "TOTAL", header: "Licencias totales", priority: 2 },
-    { id: "TERMINADOS", header: "Licencias terminadas", priority: 5 },
-    {
-      id: "Editar",
-      header: "Acción",
-      priority: 10,
-      render: (row: RowData) => (
-        <BotonEditar 
-          row={row} 
-          token={token || ""}
-          onSuccess={applyEditLocally}
-        />
-      ),
-    },
-  ], [rows, token, applyEditLocally]); // Se recalcula si cambian las filas
+  const columns = useMemo(
+    () => [
+      { id: "GRUPO", header: "Grupo", priority: 1 },
+      { id: "TOTAL", header: "Licencias totales", priority: 2 },
+      { id: "TERMINADOS", header: "Licencias terminadas", priority: 5 },
+      {
+        id: "Editar",
+        header: "Acción",
+        priority: 10,
+        render: (row: RowData) => (
+          <BotonEditar
+            row={row}
+            token={token || ""}
+            onSuccess={applyEditLocally}
+          />
+        ),
+      },
+    ],
+    [rows, token, applyEditLocally],
+  ); // Se recalcula si cambian las filas
 
   if (!isMounted) return <div className="p-8">Cargando...</div>;
   if (!token) return <div className="p-8">No autorizado.</div>;

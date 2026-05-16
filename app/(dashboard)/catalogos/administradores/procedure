@@ -1,0 +1,139 @@
+USE [TALENTOS_JUVENIL]
+GO
+/****** Object:  StoredProcedure [dbo].[API_Usuarios_Listado]    Script Date: 14/05/2026 04:24:59 p. m. ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+create   PROCEDURE [dbo].[API_Usuarios_Listado_Admins]
+    @JsonData NVARCHAR(MAX)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF @JsonData IS NULL OR LTRIM(RTRIM(@JsonData)) = ''
+        SET @JsonData = '{}';
+
+    DECLARE @Grupo NVARCHAR(200);
+
+    SELECT @Grupo = grupo
+    FROM OPENJSON(@JsonData)
+    WITH (
+        grupo NVARCHAR(200) '$.grupo'
+    );
+
+    SELECT ISNULL((
+		SELECT
+	    cu.ID_USER_PROV_ASE AS id,
+	    cu.ID_GRUPO as idGrupo,
+
+    COALESCE(ur.usuarios_registrados, 0) AS usuariosRegistrados,
+
+   
+    cu.FECHA_ALTA,
+
+    CONCAT(
+        cu.NOMBRE, ' ',
+        cu.APELLIDO_PATERNO, ' ',
+        cu.APELLIDO_MATERNO
+    ) AS nombreUsuario,
+
+    cu.CORREO as correo,
+    cu.USUARIO as usuario,
+    
+    cu.FECHA_PRIMER_METRICA as fechaPrimerMetrica,
+    cu.SEGUNDA_METRICA as segundaMetrica,
+    cu.FECHA_SEGUNDA_METRICA as fechaSegundaMetrica,
+    cu.OBSERVACIONES as observaciones,
+
+    ng.NOMBRE_G as nombreGrupo,
+    cp.PERFIL as perfil,
+
+    COALESCE(p.parciales, 0) AS parciales,
+    COALESCE(t.totales, 0) AS totales
+
+FROM CAT_USER cu
+
+INNER JOIN NV_GRUPOS ng
+    ON cu.ID_GRUPO = ng.ID
+
+INNER JOIN CAT_PERFILES cp
+    ON cu.ID_PERFIL = cp.ID
+
+LEFT JOIN (
+    SELECT
+        ID_GRUPO,
+        COUNT(*) AS usuarios_registrados
+    FROM CAT_USER
+    WHERE ESTATUS_REGISTRADO = 1
+    GROUP BY ID_GRUPO
+) ur
+    ON cu.ID_GRUPO = ur.ID_GRUPO
+
+LEFT JOIN (
+    SELECT
+        cu.ID_GRUPO,
+        COUNT(DISTINCT cu.ID_USER_PROV_ASE) AS parciales
+    FROM CAT_USER cu
+    INNER JOIN ROLE_METRICA rm
+        ON rm.ID_USER = cu.ID_USER_PROV_ASE
+    WHERE cu.IND_TERMINADO = 0
+    GROUP BY cu.ID_GRUPO
+) p
+    ON cu.ID_GRUPO = p.ID_GRUPO
+
+LEFT JOIN (
+    SELECT
+        cu.ID_GRUPO,
+        COUNT(DISTINCT cu.ID_USER_PROV_ASE) AS totales
+    FROM CAT_USER cu
+    INNER JOIN ROLE_METRICA rm
+        ON rm.ID_USER = cu.ID_USER_PROV_ASE
+    WHERE cu.IND_TERMINADO = 1
+    GROUP BY cu.ID_GRUPO
+) t
+    ON cu.ID_GRUPO = t.ID_GRUPO
+
+WHERE cu.ID_PERFIL = 2  AND (
+              @Grupo IS NULL
+              OR LTRIM(RTRIM(@Grupo)) = ''
+              OR LTRIM(RTRIM(ng.NOMBRE_G)) = LTRIM(RTRIM(@Grupo))
+              OR CAST(ng.ID AS NVARCHAR(50)) = LTRIM(RTRIM(@Grupo))
+          )
+
+ ORDER BY ng.NOMBRE_G, cu.NOMBRE, cu.apellido_paterno
+        FOR JSON PATH
+    ), '[]') AS JsonData;
+
+
+
+
+
+END
+
+--exec dbo.API_Usuarios_Listado '{
+--  "grupo": "SEC-21EES0242Z"
+--}'
+
+
+
+Usuario modifica correo → Confirmar
+          ↓
+POST /api/editar → Backend devuelve { id: 5023 }
+          ↓
+Extrae ID: 5023
+          ↓
+Llama reloadModifiedRecord(5023)
+          ↓
+fetch /api/admins (obtiene todos los admins del grupo)
+          ↓
+Busca registro con id === "5023"
+          ↓
+Actualiza setRows con el nuevo registro
+          ↓
+Tabla se redibuja con datos actualizados
+          ↓
+BotonEditar recibe nuevo row prop
+          ↓
+useEffect detecta cambio y actualiza formulario

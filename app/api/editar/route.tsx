@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 // Asegúrate de que en tu .env esta URL apunte al controlador: edita_grupo
-const TABLA_EDITAR_URL = process.env.EXTERNAL_EDITAR_URL || ""; 
+const TABLA_EDITAR_URL = process.env.EXTERNAL_EDITAR_URL || "";
 const EXTERNAL_API_TOKEN = process.env.EXTERNAL_API_TOKEN || "";
 const EXTERNAL_API_TOKEN_TYPE = process.env.EXTERNAL_API_TOKEN_TYPE || "Bearer";
 
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
   if (!TABLA_EDITAR_URL) {
     return NextResponse.json(
       { error: "Falta configurar EXTERNAL_EDITAR_URL" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -42,22 +42,21 @@ export async function POST(request: NextRequest) {
       const errorData = await response.json().catch(() => ({}));
       return NextResponse.json(
         {
-          error: errorData.error || "Error al editar el grupo",
+          error: errorData.error || "Error al actualizar los datos",
           status: response.status,
         },
-        { status: response.status }
+        { status: response.status },
       );
     }
 
     const result = await response.json();
-    
+
     // 3. Retornamos el resultado exitoso al frontend
     return NextResponse.json({ ok: true, result }, { status: 200 });
-
   } catch (error: any) {
     return NextResponse.json(
       { error: "Error de conexión: " + error.message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

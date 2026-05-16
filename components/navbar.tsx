@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react"
-import Link from "next/link"
-import Image from "next/image"
-import { useRouter } from "next/navigation"
+import { useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,20 +11,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  NavigationMenu,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  navigationMenuTriggerStyle,
-} from "@/components/ui/navigation-menu"
-import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 export function Navbar() {
   const router = useRouter();
@@ -39,11 +32,11 @@ export function Navbar() {
   return (
     <nav className="flex items-center justify-between bg-[#b59445] px-10 py-3 text-white font-sans">
       {/* LADO IZQUIERDO: Logo */}
-      <div className="flex-shrink-0">
-        <Image 
+      <div className="shrink-0">
+        <Image
           src="/logo_nuevo.jpeg" // Asegúrate de que el nombre coincida
           alt="Mistalentos Logo"
-          width={250} 
+          width={250}
           height={60}
           className="bg-white p-1" // El fondo blanco que se ve en tu imagen
         />
@@ -59,20 +52,38 @@ export function Navbar() {
           <DropdownMenuTrigger className="outline-none hover:opacity-80 transition-opacity cursor-pointer">
             Catálogos
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 bg-white p-2 shadow-lg rounded-sm border-none mt-2">
-            <DropdownMenuItem className="focus:bg-slate-100 cursor-pointer text-slate-700 font-medium uppercase text-xs tracking-wider p-2">
-              <Link href="/catalogos/grupos" className="w-full">GRUPOS</Link>
+          <DropdownMenuContent
+            align="end"
+            className="w-56 bg-white p-2 shadow-lg rounded-sm border-none mt-2"
+          >
+            <DropdownMenuItem
+              asChild
+              className="focus:bg-slate-100 cursor-pointer text-slate-700 font-medium uppercase text-xs tracking-wider p-2"
+            >
+              <Link href="/catalogos/grupos" className="w-full">
+                GRUPOS
+              </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem className="focus:bg-slate-100 cursor-pointer text-slate-700 font-medium uppercase text-xs tracking-wider p-2">
-              <Link href="/catalogos/administradores">ADMINISTRADORES</Link>
+            <DropdownMenuItem
+              asChild
+              className="focus:bg-slate-100 cursor-pointer text-slate-700 font-medium uppercase text-xs tracking-wider p-2"
+            >
+              <Link href="/catalogos/administradores" className="w-full">
+                ADMINISTRADORES
+              </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem className="focus:bg-slate-100 cursor-pointer text-slate-700 font-medium uppercase text-xs tracking-wider p-2">
-              <Link href="/catalogos/usuarios" className="w-full">USUARIOS</Link>
+            <DropdownMenuItem
+              asChild
+              className="focus:bg-slate-100 cursor-pointer text-slate-700 font-medium uppercase text-xs tracking-wider p-2"
+            >
+              <Link href="/catalogos/usuarios" className="w-full">
+                USUARIOS
+              </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <button 
+        <button
           onClick={() => setOpenLogout(true)}
           className="hover:opacity-80 transition-opacity"
         >
@@ -89,9 +100,7 @@ export function Navbar() {
             <Button variant="outline" onClick={() => setOpenLogout(false)}>
               No
             </Button>
-            <Button onClick={handleLogout}>
-              Sí
-            </Button>
+            <Button onClick={handleLogout}>Sí</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
