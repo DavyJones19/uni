@@ -47,20 +47,21 @@ export const GrupoSelector = React.forwardRef<
     loadingRows,
     error,
   },
-  ref
+  ref,
 ) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const innerInputRef = React.useRef<HTMLInputElement>(null);
   const [isOpen, setIsOpen] = React.useState(false);
   const [highlightedIndex, setHighlightedIndex] = React.useState(-1);
 
-  React.useImperativeHandle(ref, () => innerInputRef.current as HTMLInputElement, []);
+  React.useImperativeHandle(
+    ref,
+    () => innerInputRef.current as HTMLInputElement,
+    [],
+  );
 
   // useMemo: solo recalcula la lista sin duplicados cuando cambia `groups`.
-  const uniqueGroups = React.useMemo(
-    () => dedupeByValue(groups),
-    [groups]
-  );
+  const uniqueGroups = React.useMemo(() => dedupeByValue(groups), [groups]);
 
   const normalizedQuery = selectedGroup.trim().toLowerCase();
   const filteredGroups = React.useMemo(() => {
@@ -100,7 +101,7 @@ export const GrupoSelector = React.forwardRef<
       setIsOpen(false);
       setHighlightedIndex(-1);
     },
-    [onSelectedGroupChange]
+    [onSelectedGroupChange],
   );
 
   return (
@@ -134,7 +135,7 @@ export const GrupoSelector = React.forwardRef<
                 event.preventDefault();
                 setIsOpen(true);
                 setHighlightedIndex((prev) =>
-                  Math.min(prev + 1, filteredGroups.length - 1)
+                  Math.min(prev + 1, filteredGroups.length - 1),
                 );
                 return;
               }
@@ -168,7 +169,9 @@ export const GrupoSelector = React.forwardRef<
               className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-zinc-200 bg-white py-1 shadow-lg"
             >
               {filteredGroups.length === 0 ? (
-                <p className="px-3 py-2 text-xs text-zinc-500">No hay coincidencias.</p>
+                <p className="px-3 py-2 text-xs text-zinc-500">
+                  No hay coincidencias.
+                </p>
               ) : (
                 filteredGroups.map((group, index) => (
                   <button
@@ -187,7 +190,9 @@ export const GrupoSelector = React.forwardRef<
                   >
                     <span className="font-medium">{group.label}</span>
                     {group.label !== group.value && (
-                      <span className="ml-2 text-xs opacity-70">({group.value})</span>
+                      <span className="ml-2 text-xs opacity-70">
+                        ({group.value})
+                      </span>
                     )}
                   </button>
                 ))

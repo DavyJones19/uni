@@ -439,6 +439,7 @@ export default function AdminsPage() {
     // Resetea el valor del selector
     setRows([]); // Vacía la tabla de resultados
     setError(null); // Limpia posibles errores previos
+    setSelectedGroup(""); // limpia el combo/input
   };
 
   // 2. Recuperar el token (Si lo guardaste en localStorage o similar al loguear)
