@@ -1,11 +1,12 @@
-
 "use client";
 
 import * as React from "react";
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { GrupoSelector, type GrupoOption } from "@/app/(dashboard)/GrupoSelector";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import {
+  GrupoSelector,
+  type GrupoOption,
+} from "@/app/(dashboard)/GrupoSelector";
 import { TablaAlumnos } from "@/app/(dashboard)/TablaAlumnos";
-
 
 // --- TIPOS Y FUNCIONES AUXILIARES ---
 type RowData = Record<string, unknown>;
@@ -18,13 +19,24 @@ type ColumnDef<T> = {
   render?: (row: T) => React.ReactNode;
 };
 
-const HIDDEN_COLUMN_IDS = new Set<string>(["estatus_metrica", "AP", "AM", "NOMBRE", "SESION", "id_usuario", "ind_terminado","estatus_190","estatus_registrado"]);
+const HIDDEN_COLUMN_IDS = new Set<string>([
+  "estatus_metrica",
+  "AP",
+  "AM",
+  "NOMBRE",
+  "SESION",
+  "id_usuario",
+  "ind_terminado",
+  "estatus_190",
+  "estatus_registrado",
+]);
 
 const RESUMEN_PDF_URL = "https://mistalentos.mx/FORMATOS/Talentos_";
 
 function handleDescargarResumen(row: RowData) {
   const idUser = row["id_usuario"] ?? row["ID_USUARIO"];
-  if (idUser === undefined || idUser === null || String(idUser).trim() === "") return;
+  if (idUser === undefined || idUser === null || String(idUser).trim() === "")
+    return;
   const url = `${RESUMEN_PDF_URL}${encodeURIComponent(String(idUser).trim())}.pdf`;
   window.open(url, "_blank", "noopener,noreferrer");
 }
@@ -38,7 +50,12 @@ function renderNombreCompleto(row: RowData) {
 
 const DEFAULT_COLUMNS: ColumnDef<RowData>[] = [
   { id: "GRUPO", header: "Grupo", priority: 1 },
-  { id: "NOMBRE_COMPLETO", header: "Nombre completo", priority: 2, render: renderNombreCompleto },
+  {
+    id: "NOMBRE_COMPLETO",
+    header: "Nombre completo",
+    priority: 2,
+    render: renderNombreCompleto,
+  },
   { id: "USUARIO", header: "Usuario", priority: 3 },
   { id: "PWD", header: "Contraseña", priority: 4 },
   { id: "CORREO", header: "Correo", priority: 5 },
@@ -67,7 +84,11 @@ const DEFAULT_COLUMNS: ColumnDef<RowData>[] = [
   },
 ];
 
-function buildColumns(rows: RowData[], defaults: ColumnDef<RowData>[], hidden: Set<string>) {
+function buildColumns(
+  rows: RowData[],
+  defaults: ColumnDef<RowData>[],
+  hidden: Set<string>,
+) {
   const fromConfig = defaults
     .map((col) => ({ ...col, accessorKey: col.id }))
     .filter((col) => !hidden.has(col.id));
@@ -111,7 +132,7 @@ export default function UsuariosPage() {
         });
         const data = await response.json();
         // Aquí usas tu función normalizeClientGroups que ya tienes
-        setGroups(data?.data || []); 
+        setGroups(data?.data || []);
       } catch (err) {
         setError("Error al cargar grupos");
       } finally {
@@ -122,25 +143,33 @@ export default function UsuariosPage() {
   }, [token]);
 
   // 4. Carga de filas (Alumnos)
-  const loadRows = useCallback(async (grupo?: string) => {
-    if (!token) return;
-    try {
-      setLoadingRows(true);
-      setError(null);
-      const grupoNormalizado = String(grupo ?? "").trim();
-      const response = await fetch("/api/alumnos", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(grupoNormalizado ? { grupo: grupoNormalizado } : {}),
-      });
-      const data = await response.json();
-      setRows(data?.data || []);
-    } catch (err) {
-      setError("Error al cargar alumnos");
-    } finally {
-      setLoadingRows(false);
-    }
-  }, [token]);
+  const loadRows = useCallback(
+    async (grupo?: string) => {
+      if (!token) return;
+      try {
+        setLoadingRows(true);
+        setError(null);
+        const grupoNormalizado = String(grupo ?? "").trim();
+        const response = await fetch("/api/alumnos", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(
+            grupoNormalizado ? { grupo: grupoNormalizado } : {},
+          ),
+        });
+        const data = await response.json();
+        setRows(data?.data || []);
+      } catch (err) {
+        setError("Error al cargar alumnos");
+      } finally {
+        setLoadingRows(false);
+      }
+    },
+    [token],
+  );
 
   // 5. Manejadores de eventos
   const handleGroupChange = (value: string) => {
@@ -163,15 +192,20 @@ export default function UsuariosPage() {
   }, [token, loadRows]);
 
   if (!isMounted) return <div className="p-8">Cargando...</div>;
-  if (!token) return <div className="p-8">No autorizado. Por favor, inicia sesión.</div>;
+  if (!token)
+    return <div className="p-8">No autorizado. Por favor, inicia sesión.</div>;
 
   const columns = buildColumns(rows, DEFAULT_COLUMNS, HIDDEN_COLUMN_IDS);
 
   return (
     <div className="mx-auto w-full max-w-[96rem] px-4 py-8 flex flex-col gap-6 bg-white min-h-screen">
       <header className="space-y-2 border-b pb-4">
-        <h1 className="text-2xl font-bold text-zinc-800">Consulta de Usuarios</h1>
-        <p className="text-sm text-zinc-500">Módulo de administración de talentos</p>
+        <h1 className="text-2xl font-bold text-zinc-800">
+          Consulta de Usuarios
+        </h1>
+        <p className="text-sm text-zinc-500">
+          Módulo de administración de talentos
+        </p>
       </header>
 
       <GrupoSelector
@@ -187,7 +221,9 @@ export default function UsuariosPage() {
 
       <section className="space-y-4">
         <div className="bg-zinc-50 p-4 rounded-lg border">
-          <h2 className="text-lg font-semibold text-zinc-800 mb-4">Listado de Alumnos</h2>
+          <h2 className="text-lg font-semibold text-zinc-800 mb-4">
+            Listado de Alumnos
+          </h2>
           <TablaAlumnos columns={columns} data={rows} />
         </div>
       </section>

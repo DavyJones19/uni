@@ -18,7 +18,8 @@ const extractInsertedId = (payload: any): string | number | null => {
   if (Array.isArray(payload)) {
     for (const item of payload) {
       const nested = extractInsertedId(item);
-      if (nested !== null && nested !== undefined && nested !== "") return nested;
+      if (nested !== null && nested !== undefined && nested !== "")
+        return nested;
     }
     return null;
   }
@@ -39,7 +40,8 @@ const extractInsertedId = (payload: any): string | number | null => {
 
     for (const source of nestedSources) {
       const nested = extractInsertedId(source);
-      if (nested !== null && nested !== undefined && nested !== "") return nested;
+      if (nested !== null && nested !== undefined && nested !== "")
+        return nested;
     }
   }
 

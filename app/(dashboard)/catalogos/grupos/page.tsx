@@ -48,9 +48,7 @@ function BotonEditar({ row, token, onSuccess }: BotonEditarProps) {
   const [error, setError] = useState<string | null>(null);
   const getGroupName = useCallback(
     () =>
-      String(
-        row.nombre_g ?? row.GRUPO ?? row.grupo ?? row.nombreGrupo ?? "",
-      ),
+      String(row.nombre_g ?? row.GRUPO ?? row.grupo ?? row.nombreGrupo ?? ""),
     [row],
   );
   const [valorEditado, setValorEditado] = useState(getGroupName());
@@ -293,7 +291,9 @@ export default function GruposPage() {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         const apiMsg =
-          typeof data?.error === "string" ? data.error : "Error al cargar grupos";
+          typeof data?.error === "string"
+            ? data.error
+            : "Error al cargar grupos";
         throw new Error(apiMsg);
       }
       setGroups(data?.data || []);
@@ -351,7 +351,9 @@ export default function GruposPage() {
       const previousName = String(previousGroupName || "").trim();
       const nextName = String(nextGroupName || "").trim();
       const nextFilter =
-        previousName && currentFilter === previousName ? nextName : currentFilter;
+        previousName && currentFilter === previousName
+          ? nextName
+          : currentFilter;
 
       if (previousName && currentFilter === previousName) {
         setSelectedGroup(nextName);

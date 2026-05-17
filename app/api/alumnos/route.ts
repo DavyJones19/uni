@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
   if (!ALUMNOS_URL) {
     return NextResponse.json(
       { error: "Falta configurar EXTERNAL_ALUMNOS_URL" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
           status: response.status,
           statusText: response.statusText,
         },
-        { status: response.status }
+        { status: response.status },
       );
     }
 
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
   } catch {
     return NextResponse.json(
       { error: "Error al conectar con la API externa de alumnos" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

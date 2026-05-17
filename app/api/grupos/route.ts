@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
   if (!GRUPOS_URL) {
     return NextResponse.json(
       { error: "Falta configurar EXTERNAL_GRUPOS_URL" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
           status: response.status,
           statusText: response.statusText,
         },
-        { status: response.status }
+        { status: response.status },
       );
     }
 
@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
   } catch {
     return NextResponse.json(
       { error: "Error al conectar con la API externa de grupos" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
