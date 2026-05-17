@@ -122,14 +122,16 @@ export default function UsuariosPage() {
   }, [token]);
 
   // 4. Carga de filas (Alumnos)
-  const loadRows = useCallback(async (grupo: string) => {
+  const loadRows = useCallback(async (grupo?: string) => {
     if (!token) return;
     try {
       setLoadingRows(true);
+      setError(null);
+      const grupoNormalizado = String(grupo ?? "").trim();
       const response = await fetch("/api/alumnos", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ grupo }),
+        body: JSON.stringify(grupoNormalizado ? { grupo: grupoNormalizado } : {}),
       });
       const data = await response.json();
       setRows(data?.data || []);
@@ -143,21 +145,22 @@ export default function UsuariosPage() {
   // 5. Manejadores de eventos
   const handleGroupChange = (value: string) => {
     setSelectedGroup(value);
-    if (!value.trim()) {
-      setRows([]);
-    }
   };
 
   const handleSearchClick = () => {
-    const grupo = selectedGroup.trim();
-    if (grupo) void loadRows(grupo);
+    void loadRows(selectedGroup.trim());
   };
 
   const handleClearClick = () => {
     setSelectedGroup("");
-    setRows([]);
     setError(null);
+    void loadRows();
   };
+
+  useEffect(() => {
+    if (!token) return;
+    void loadRows();
+  }, [token, loadRows]);
 
   if (!isMounted) return <div className="p-8">Cargando...</div>;
   if (!token) return <div className="p-8">No autorizado. Por favor, inicia sesión.</div>;

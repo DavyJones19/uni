@@ -1,4 +1,4 @@
-// POST /api/admins — proxy para obtener filas de administradores según el grupo.
+// POST /api/admins — proxy para obtener filas de administradores.
 // Soporta API externa por POST (body JSON) o GET (query o placeholder {grupo} en la URL).
 
 import { NextRequest, NextResponse } from "next/server";
@@ -76,14 +76,6 @@ export async function POST(request: NextRequest) {
     grupo = "";
   }
 
-  if (!grupo) {
-    // 400 Bad Request = el cliente no envió lo mínimo necesario.
-    return NextResponse.json(
-      { error: "El campo grupo es obligatorio" },
-      { status: 400 },
-    );
-  }
-
   try {
     let url = ADMINS_URL;
     const headers: Record<string, string> = {
@@ -102,7 +94,7 @@ export async function POST(request: NextRequest) {
     if (ADMINS_METHOD === "GET") {
       if (url.includes("{grupo}")) {
         url = url.replace("{grupo}", encodeURIComponent(grupo));
-      } else {
+      } else if (grupo) {
         const connector = url.includes("?") ? "&" : "?";
         url = `${url}${connector}grupo=${encodeURIComponent(grupo)}`;
       }
@@ -113,7 +105,7 @@ export async function POST(request: NextRequest) {
         // Spread ...init mantiene method, headers y signal; añadimos body.
         init = {
           ...init,
-          body: JSON.stringify({ grupo }),
+          body: JSON.stringify(grupo ? { grupo } : {}),
         };
       }
     }

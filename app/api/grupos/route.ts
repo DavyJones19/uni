@@ -54,7 +54,19 @@ const normalizeGroups = (payload: unknown): GrupoOption[] => {
           record.value;
         const value = candidate ? String(candidate).trim() : "";
         if (!value) return null;
-        return { id: value, label: value, value };
+        // Captura el ID numérico del grupo (campo entero del backend).
+        const numericId =
+          record.ID_GRUPO ??
+          record.id_grupo ??
+          record.IdGrupo ??
+          record.ID ??
+          record.id ??
+          record.Id;
+        const id =
+          numericId !== null && numericId !== undefined
+            ? String(numericId).trim()
+            : value;
+        return { id, label: value, value };
       }
       return null;
     })

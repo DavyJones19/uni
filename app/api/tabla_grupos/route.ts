@@ -44,13 +44,6 @@ export async function POST(request: NextRequest) {
     grupo = "";
   }
 
-  if (!grupo) {
-    return NextResponse.json(
-      { error: "El campo grupo es obligatorio" },
-      { status: 400 }
-    );
-  }
-
   try {
     let url = TABLA_GRUPOS_URL;
     const headers: Record<string, string> = {
@@ -68,7 +61,7 @@ export async function POST(request: NextRequest) {
     if (TABLA_GRUPOS_METHOD === "GET") {
       if (url.includes("{grupo}")) {
         url = url.replace("{grupo}", encodeURIComponent(grupo));
-      } else {
+      } else if (grupo) {
         const connector = url.includes("?") ? "&" : "?";
         url = `${url}${connector}grupo=${encodeURIComponent(grupo)}`;
       }
@@ -78,7 +71,7 @@ export async function POST(request: NextRequest) {
       } else {
         init = {
           ...init,
-          body: JSON.stringify({ grupo }),
+          body: JSON.stringify(grupo ? { grupo } : {}),
         };
       }
     }

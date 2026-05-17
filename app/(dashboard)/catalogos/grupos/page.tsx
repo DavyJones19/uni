@@ -33,20 +33,41 @@ type ColumnDef<T> = {
 interface BotonEditarProps {
   row: RowData;
   token: string;
-  onSuccess: (row: RowData, nuevoValor: string) => void;
+  onSuccess: (previousGroupName: string, nextGroupName: string) => void;
+}
+
+interface BotonInsertarProps {
+  token: string;
+  disabled?: boolean;
+  onSuccess: (nuevoGrupo: string) => void;
 }
 
 function BotonEditar({ row, token, onSuccess }: BotonEditarProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [valorEditado, setValorEditado] = useState(String(row.nombre_g || ""));
+  const getGroupName = useCallback(
+    () =>
+      String(
+        row.nombre_g ?? row.GRUPO ?? row.grupo ?? row.nombreGrupo ?? "",
+      ),
+    [row],
+  );
+  const [valorEditado, setValorEditado] = useState(getGroupName());
+
+  useEffect(() => {
+    if (open) return;
+    setValorEditado(getGroupName());
+  }, [open, getGroupName]);
 
   const handleUpdate = async () => {
     if (!valorEditado) {
       setError("El campo es obligatorio.");
       return;
     }
+
+    const previousGroupName = getGroupName().trim();
+    const nextGroupName = valorEditado.trim();
 
     try {
       setLoading(true);
@@ -76,8 +97,8 @@ function BotonEditar({ row, token, onSuccess }: BotonEditarProps) {
       }
 
       setOpen(false);
-      // Notificamos al padre para que actualice la fila localmente
-      onSuccess(row, valorEditado);
+      // Notificamos al padre para recargar la tabla completa.
+      onSuccess(previousGroupName, nextGroupName);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -93,7 +114,7 @@ function BotonEditar({ row, token, onSuccess }: BotonEditarProps) {
         onClick={() => {
           setOpen(true);
           setError(null);
-          setValorEditado(String(row.nombre_g || ""));
+          setValorEditado(getGroupName());
         }}
       >
         Editar
@@ -140,6 +161,106 @@ function BotonEditar({ row, token, onSuccess }: BotonEditarProps) {
   );
 }
 
+function BotonInserta({ token, disabled, onSuccess }: BotonInsertarProps) {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [valorNuevo, setValorNuevo] = useState("");
+
+  const handleInsert = async () => {
+    const grupo = valorNuevo.trim();
+    if (!grupo) {
+      setError("El nombre del grupo es obligatorio.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const datos = {
+        tl: "nv_grupos",
+        nombre_g: grupo,
+      };
+
+      const response = await fetch("/api/insertar", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(datos),
+      });
+
+      const resData = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const apiMsg =
+          typeof resData?.error === "string" ? resData.error : null;
+        throw new Error(apiMsg || "Error en la inserción.");
+      }
+
+      setOpen(false);
+      setValorNuevo("");
+      onSuccess(grupo);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        className="rounded-md border border-sky-600 bg-sky-600 px-2 py-1 text-xs font-medium text-white hover:bg-sky-500"
+        disabled={disabled}
+        onClick={() => {
+          setOpen(true);
+          setError(null);
+        }}
+      >
+        + Agregar
+      </button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Agregar Grupo</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="flex flex-col gap-2">
+              <Input
+                value={valorNuevo}
+                onChange={(e) => setValorNuevo(e.target.value)}
+                placeholder="Nombre del grupo"
+                disabled={loading}
+              />
+              {error && <p className="text-xs text-red-500">{error}</p>}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={loading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleInsert}
+              disabled={loading}
+              className="bg-sky-600"
+            >
+              {loading ? "Guardando..." : "Agregar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 // --- PÁGINA PRINCIPAL ---
 export default function GruposPage() {
   const [token, setToken] = useState<string | null>(null);
@@ -152,9 +273,8 @@ export default function GruposPage() {
   const [error, setError] = useState<string | null>(null);
   const handleLimpiarFiltros = () => {
     setSelectedGroup(""); // Resetea el valor del selector
-    setRows([]); // Vacía la tabla de resultados
     setError(null); // Limpia posibles errores previos
-    // Si tuvieras paginación o filtros de texto adicionales, los reseteas aquí
+    void loadRows();
   };
   useEffect(() => {
     setIsMounted(true);
@@ -162,115 +282,49 @@ export default function GruposPage() {
     if (savedToken) setToken(savedToken);
   }, []);
 
-  useEffect(() => {
+  const loadGroups = useCallback(async () => {
     if (!token) return;
-    const loadGroups = async () => {
-      try {
-        setLoadingGroups(true);
-        setError(null);
-        const response = await fetch("/api/grupos", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          const apiMsg =
-            typeof data?.error === "string"
-              ? data.error
-              : "Error al cargar grupos";
-          throw new Error(apiMsg);
-        }
-        setGroups(data?.data || []);
-      } catch (err: any) {
-        setGroups([]);
-        setError(err?.message || "Error al cargar grupos");
-      } finally {
-        setLoadingGroups(false);
+    try {
+      setLoadingGroups(true);
+      setError(null);
+      const response = await fetch("/api/grupos", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const apiMsg =
+          typeof data?.error === "string" ? data.error : "Error al cargar grupos";
+        throw new Error(apiMsg);
       }
-    };
-
-    void loadGroups();
+      setGroups(data?.data || []);
+    } catch (err: any) {
+      setGroups([]);
+      setError(err?.message || "Error al cargar grupos");
+    } finally {
+      setLoadingGroups(false);
+    }
   }, [token]);
 
-  // Actualiza solo la fila editada y sincroniza el combo sin recargar toda la tabla.
-  const applyEditLocally = useCallback(
-    (editedRow: RowData, nuevoValor: string) => {
-      const safeNewValue = String(nuevoValor || "").trim();
-      if (!safeNewValue) return;
-
-      const rowId = String(
-        editedRow?.id ??
-          editedRow?.ID ??
-          editedRow?.Id ??
-          editedRow?.id_grupo ??
-          "",
-      );
-      const previousName = String(
-        editedRow?.nombre_g ?? editedRow?.GRUPO ?? editedRow?.grupo ?? "",
-      ).trim();
-
-      setRows((prev) =>
-        prev.map((r) => {
-          const currentId = String(
-            r?.id ?? r?.ID ?? r?.Id ?? r?.id_grupo ?? "",
-          );
-          if (rowId && currentId === rowId) {
-            return {
-              ...r,
-              nombre_g: safeNewValue,
-              GRUPO: safeNewValue,
-              grupo: safeNewValue,
-            };
-          }
-          if (!rowId && previousName) {
-            const currentName = String(
-              r?.nombre_g ?? r?.GRUPO ?? r?.grupo ?? "",
-            ).trim();
-            if (currentName === previousName) {
-              return {
-                ...r,
-                nombre_g: safeNewValue,
-                GRUPO: safeNewValue,
-                grupo: safeNewValue,
-              };
-            }
-          }
-          return r;
-        }),
-      );
-
-      setGroups((prev) =>
-        prev.map((g) => {
-          const matchById = rowId && String(g.id) === rowId;
-          const matchByName =
-            previousName &&
-            (g.value === previousName || g.label === previousName);
-          if (!matchById && !matchByName) return g;
-          return {
-            ...g,
-            label: safeNewValue,
-            value: safeNewValue,
-          };
-        }),
-      );
-
-      setSelectedGroup((prev) => (prev === previousName ? safeNewValue : prev));
-    },
-    [],
-  );
+  useEffect(() => {
+    void loadGroups();
+  }, [loadGroups]);
 
   const loadRows = useCallback(
-    async (grupo: string) => {
+    async (grupo?: string) => {
       if (!token) return;
       try {
         setLoadingRows(true);
         setError(null);
+        const grupoNormalizado = String(grupo ?? "").trim();
         const response = await fetch("/api/tabla_grupos", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ grupo: grupo.trim() }),
+          body: JSON.stringify(
+            grupoNormalizado ? { grupo: grupoNormalizado } : {},
+          ),
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
@@ -291,6 +345,33 @@ export default function GruposPage() {
     [token],
   );
 
+  const handleEditSuccess = useCallback(
+    (previousGroupName: string, nextGroupName: string) => {
+      const currentFilter = selectedGroup.trim();
+      const previousName = String(previousGroupName || "").trim();
+      const nextName = String(nextGroupName || "").trim();
+      const nextFilter =
+        previousName && currentFilter === previousName ? nextName : currentFilter;
+
+      if (previousName && currentFilter === previousName) {
+        setSelectedGroup(nextName);
+      }
+
+      void loadGroups();
+      void loadRows(nextFilter);
+    },
+    [selectedGroup, loadGroups, loadRows],
+  );
+
+  const handleInsertSuccess = useCallback(
+    (nuevoGrupo: string) => {
+      setSelectedGroup(nuevoGrupo);
+      void loadGroups();
+      void loadRows(nuevoGrupo);
+    },
+    [loadGroups, loadRows],
+  );
+
   // Definición de columnas dentro del componente para acceder a 'updateLocalRow'
   const columns = useMemo(
     () => [
@@ -305,13 +386,18 @@ export default function GruposPage() {
           <BotonEditar
             row={row}
             token={token || ""}
-            onSuccess={applyEditLocally}
+            onSuccess={handleEditSuccess}
           />
         ),
       },
     ],
-    [rows, token, applyEditLocally],
+    [token, handleEditSuccess],
   ); // Se recalcula si cambian las filas
+
+  useEffect(() => {
+    if (!token) return;
+    void loadRows();
+  }, [token, loadRows]);
 
   if (!isMounted) return <div className="p-8">Cargando...</div>;
   if (!token) return <div className="p-8">No autorizado.</div>;
@@ -327,8 +413,7 @@ export default function GruposPage() {
         selectedGroup={selectedGroup}
         onSelectedGroupChange={(v) => setSelectedGroup(v)}
         onSearch={() => {
-          const grupo = selectedGroup.trim();
-          if (grupo) void loadRows(grupo);
+          void loadRows(selectedGroup.trim());
         }}
         onClear={handleLimpiarFiltros}
         loadingGroups={loadingGroups}
@@ -336,6 +421,13 @@ export default function GruposPage() {
         error={error}
       />
       <section className="bg-zinc-50 p-4 rounded-lg border">
+        <div className="mb-4">
+          <BotonInserta
+            token={token || ""}
+            disabled={loadingRows}
+            onSuccess={handleInsertSuccess}
+          />
+        </div>
         <TablaGrupos columns={columns} data={rows} />
       </section>
     </div>

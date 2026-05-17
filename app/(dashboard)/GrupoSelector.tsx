@@ -203,7 +203,7 @@ export const GrupoSelector = React.forwardRef<
         <button
           type="button"
           onClick={onSearch}
-          disabled={!selectedGroup.trim() || loadingRows}
+          disabled={loadingRows}
           className="h-10 rounded-md border border-zinc-200 bg-zinc-900 px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
         >
           {loadingRows ? "Cargando..." : "Buscar"}

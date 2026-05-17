@@ -45,7 +45,7 @@ const getRowId = (row: Record<string, unknown>, index: number) => {
 // Si la columna trae render(), la usa; si no, lee row[accessorKey] como texto.
 const getCellValue = <TData,>(
   row: TData,
-  column: ColumnDef<TData>
+  column: ColumnDef<TData>,
 ): React.ReactNode => {
   if (column.render) return column.render(row);
   const key = column.accessorKey ?? column.id;
@@ -71,7 +71,7 @@ export function DataTablePriority<TData extends Record<string, unknown>>({
   const [pageSize, setPageSize] = React.useState(() =>
     resolvedPageSizes.includes(defaultPageSize)
       ? defaultPageSize
-      : resolvedPageSizes[0] ?? 10
+      : (resolvedPageSizes[0] ?? 10),
   );
   const [currentPage, setCurrentPage] = React.useState(1);
 
@@ -131,7 +131,7 @@ export function DataTablePriority<TData extends Record<string, unknown>>({
         index,
       }))
       .sort((a, b) =>
-        a.priority === b.priority ? a.index - b.index : a.priority - b.priority
+        a.priority === b.priority ? a.index - b.index : a.priority - b.priority,
       )
       .map(({ col }) => col);
   }, [columns]);
@@ -141,7 +141,10 @@ export function DataTablePriority<TData extends Record<string, unknown>>({
 
     const expandCellWidth = 56;
     const horizontalPadding = 24;
-    const availableWidth = Math.max(0, containerWidth - expandCellWidth - horizontalPadding);
+    const availableWidth = Math.max(
+      0,
+      containerWidth - expandCellWidth - horizontalPadding,
+    );
 
     let used = 0;
     let count = 0;
@@ -150,7 +153,7 @@ export function DataTablePriority<TData extends Record<string, unknown>>({
       const headerSize = String(col.header ?? col.id).length;
       const estimatedWidth = Math.min(
         260,
-        Math.max(col.render ? 140 : 110, headerSize * 8 + 40)
+        Math.max(col.render ? 140 : 110, headerSize * 8 + 40),
       );
 
       if (count === 0 || used + estimatedWidth <= availableWidth) {
@@ -166,12 +169,12 @@ export function DataTablePriority<TData extends Record<string, unknown>>({
 
   const visibleColumns = React.useMemo(
     () => orderedColumns.slice(0, maxVisible),
-    [orderedColumns, maxVisible]
+    [orderedColumns, maxVisible],
   );
 
   const hiddenColumns = React.useMemo(
     () => orderedColumns.slice(maxVisible),
-    [orderedColumns, maxVisible]
+    [orderedColumns, maxVisible],
   );
 
   // Actualización funcional de estado: recibe el estado anterior (prev) y devuelve el nuevo Set.
@@ -191,7 +194,10 @@ export function DataTablePriority<TData extends Record<string, unknown>>({
   const displayPage = safePage;
 
   return (
-    <div ref={tableContainerRef} className="w-full overflow-hidden rounded-lg border border-zinc-200 bg-white">
+    <div
+      ref={tableContainerRef}
+      className="w-full overflow-hidden rounded-lg border border-zinc-200 bg-white"
+    >
       <table className="w-full border-collapse text-sm">
         <thead className="bg-zinc-50 text-left text-zinc-600">
           <tr>
@@ -244,16 +250,19 @@ export function DataTablePriority<TData extends Record<string, unknown>>({
                   </tr>
                   {hasHidden && isExpanded && (
                     <tr className="border-t border-zinc-200 bg-zinc-50">
-                      <td colSpan={visibleColumns.length + 1} className="px-3 py-3">
+                      <td
+                        colSpan={visibleColumns.length + 1}
+                        className="px-3 py-3"
+                      >
                         <div
                           className={
                             isMobile
-                              ? "grid grid-cols-1 gap-2"
-                              : "grid grid-cols-2 gap-3"
+                              ? "flex flex-col gap-2"
+                              : "flex flex-wrap gap-x-4 gap-y-2"
                           }
                         >
                           {hiddenColumns.map((col) => (
-                            <div key={col.id} className="flex flex-col">
+                            <div key={col.id} className="flex min-w-0 flex-col">
                               <span className="text-xs font-semibold text-zinc-500">
                                 {col.header}
                               </span>
@@ -301,7 +310,8 @@ export function DataTablePriority<TData extends Record<string, unknown>>({
             </label>
             <p className="tabular-nums">
               Página{" "}
-              <span className="font-semibold text-zinc-900">{displayPage}</span> de{" "}
+              <span className="font-semibold text-zinc-900">{displayPage}</span>{" "}
+              de{" "}
               <span className="font-semibold text-zinc-900">{totalPages}</span>
             </p>
             <div className="flex items-center gap-1">

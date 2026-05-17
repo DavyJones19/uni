@@ -20,6 +20,211 @@ import { Button } from "@/components/ui/button";
 
 type RowData = Record<string, any>;
 
+type GrupoComboboxProps = {
+  groups: GrupoOption[];
+  value: string;
+  onChange: (value: string) => void;
+  onSelect?: (option: GrupoOption) => void;
+  disabled?: boolean;
+  placeholder?: string;
+};
+
+const extractInsertedId = (payload: any): string | number | null => {
+  if (payload === null || payload === undefined) return null;
+
+  if (Array.isArray(payload)) {
+    for (const item of payload) {
+      const nested = extractInsertedId(item);
+      if (nested !== null && nested !== undefined && nested !== "")
+        return nested;
+    }
+    return null;
+  }
+
+  if (typeof payload === "object") {
+    const directId = payload.id ?? payload.ID;
+    if (directId !== null && directId !== undefined && directId !== "") {
+      return directId;
+    }
+
+    const nestedSources = [
+      payload.data,
+      payload.result,
+      payload.resultado,
+      payload.rows,
+      payload.JsonData,
+    ];
+
+    for (const source of nestedSources) {
+      const nested = extractInsertedId(source);
+      if (nested !== null && nested !== undefined && nested !== "")
+        return nested;
+    }
+  }
+
+  return null;
+};
+
+function GrupoComboboxField({
+  groups,
+  value,
+  onChange,
+  onSelect,
+  disabled,
+  placeholder = "Escribe o selecciona un grupo",
+}: GrupoComboboxProps) {
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [highlightedIndex, setHighlightedIndex] = React.useState(-1);
+
+  const uniqueGroups = useMemo(() => {
+    const seen = new Set<string>();
+    return groups.filter((group) => {
+      if (seen.has(group.value)) return false;
+      seen.add(group.value);
+      return true;
+    });
+  }, [groups]);
+
+  const normalizedQuery = value.trim().toLowerCase();
+  const filteredGroups = useMemo(() => {
+    if (!normalizedQuery) return uniqueGroups;
+    return uniqueGroups.filter((group) => {
+      const groupValue = group.value.toLowerCase();
+      const groupLabel = group.label.toLowerCase();
+      return (
+        groupValue.includes(normalizedQuery) ||
+        groupLabel.includes(normalizedQuery)
+      );
+    });
+  }, [uniqueGroups, normalizedQuery]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onDocumentMouseDown = (event: MouseEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setIsOpen(false);
+        setHighlightedIndex(-1);
+      }
+    };
+
+    document.addEventListener("mousedown", onDocumentMouseDown);
+    return () => {
+      document.removeEventListener("mousedown", onDocumentMouseDown);
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (filteredGroups.length === 0) {
+      setHighlightedIndex(-1);
+      return;
+    }
+    if (highlightedIndex >= filteredGroups.length) {
+      setHighlightedIndex(filteredGroups.length - 1);
+    }
+  }, [filteredGroups, highlightedIndex]);
+
+  const selectGroup = useCallback(
+    (option: GrupoOption) => {
+      if (onSelect) {
+        // Cuando hay onSelect, el padre maneja tanto el texto como el id.
+        onSelect(option);
+      } else {
+        onChange(option.label);
+      }
+      setIsOpen(false);
+      setHighlightedIndex(-1);
+    },
+    [onChange, onSelect],
+  );
+
+  return (
+    <div className="relative w-full" ref={containerRef}>
+      <input
+        role="combobox"
+        aria-expanded={isOpen}
+        aria-controls="admin-grupo-combobox-list"
+        aria-autocomplete="list"
+        className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+        placeholder={placeholder}
+        value={value}
+        disabled={disabled}
+        onFocus={() => setIsOpen(true)}
+        onChange={(event) => {
+          onChange(event.target.value);
+          setIsOpen(true);
+          setHighlightedIndex(0);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            setIsOpen(true);
+            setHighlightedIndex((prev) =>
+              Math.min(prev + 1, filteredGroups.length - 1),
+            );
+            return;
+          }
+          if (event.key === "ArrowUp") {
+            event.preventDefault();
+            setHighlightedIndex((prev) => Math.max(prev - 1, 0));
+            return;
+          }
+          if (event.key === "Enter") {
+            if (!isOpen) return;
+            event.preventDefault();
+            if (highlightedIndex >= 0 && filteredGroups[highlightedIndex]) {
+              selectGroup(filteredGroups[highlightedIndex]);
+            } else {
+              setIsOpen(false);
+            }
+            return;
+          }
+          if (event.key === "Escape") {
+            setIsOpen(false);
+            setHighlightedIndex(-1);
+          }
+        }}
+      />
+
+      {isOpen && !disabled && (
+        <div
+          id="admin-grupo-combobox-list"
+          role="listbox"
+          className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-zinc-200 bg-white py-1 shadow-lg"
+        >
+          {filteredGroups.length === 0 ? (
+            <p className="px-3 py-2 text-xs text-zinc-500">
+              No hay coincidencias.
+            </p>
+          ) : (
+            filteredGroups.map((group, index) => (
+              <button
+                key={`${group.value}-${index}`}
+                type="button"
+                role="option"
+                aria-selected={index === highlightedIndex}
+                className={`block w-full px-3 py-2 text-left text-xs ${
+                  index === highlightedIndex
+                    ? "bg-zinc-900 text-white"
+                    : "text-zinc-800 hover:bg-zinc-100"
+                }`}
+                onMouseDown={(event) => event.preventDefault()}
+                onMouseEnter={() => setHighlightedIndex(index)}
+                onClick={() => selectGroup(group)}
+              >
+                <span className="font-medium">{group.label}</span>
+                {group.label !== group.value && (
+                  <span className="ml-2 opacity-70">({group.value})</span>
+                )}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 type ColumnDef<T> = {
   id: string;
   header: string;
@@ -31,13 +236,24 @@ type ColumnDef<T> = {
 interface BotonEditarProps {
   row: RowData;
   token: string;
+  groups: GrupoOption[];
   onSuccess: (row: RowData, idModificado: string | number) => void;
 }
-
+interface BotonEliminarProps {
+  row: RowData;
+  token: string;
+  onSuccess: (row: RowData, idModificado: string | number) => void;
+}
+interface BotonInsertarProps {
+  token: string;
+  groups: GrupoOption[];
+  disabled?: boolean;
+  onSuccess: (idInsertado: string | number) => void;
+}
 // --- COMPONENTE BOTÓN EDITAR ---
 // Agregamos 'onSuccess' a las propiedades para que la tabla se entere del cambio
 
-function BotonEditar({ row, token, onSuccess }: BotonEditarProps) {
+function BotonEditar({ row, token, groups, onSuccess }: BotonEditarProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +269,10 @@ function BotonEditar({ row, token, onSuccess }: BotonEditarProps) {
   const [valorApellidoMaterno, setValorApellidoMaterno] = useState(
     String(row.apellidoMaterno || ""),
   );
+  const [valorGrupo, setValorGrupo] = useState(
+    String(row.nombreGrupo || row.grupo || ""),
+  );
+  const [valorGrupoId, setValorGrupoId] = useState(String(row.id_grupo ?? ""));
 
   // Actualizar valores cuando el row cambie (después de edición exitosa)
   useEffect(() => {
@@ -63,7 +283,8 @@ function BotonEditar({ row, token, onSuccess }: BotonEditarProps) {
     setValorNombre(String(row.nombre || ""));
     setValorApellidoPaterno(String(row.apellidoPaterno || ""));
     setValorApellidoMaterno(String(row.apellidoMaterno || ""));
-    console.log("🔄 BotonEditar: Updated local state from row prop");
+    setValorGrupo(String(row.nombreGrupo || row.grupo || ""));
+    setValorGrupoId(String(row.id_grupo ?? ""));
   }, [row]);
 
   const handleUpdate = async () => {
@@ -92,6 +313,11 @@ function BotonEditar({ row, token, onSuccess }: BotonEditarProps) {
       return;
     }
 
+    if (!valorGrupoId) {
+      setError("Selecciona un grupo de la lista.");
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -100,6 +326,8 @@ function BotonEditar({ row, token, onSuccess }: BotonEditarProps) {
         tl: "cat_user",
         indicador_id_user_prov_ase: 1,
         id: row.id,
+        id_grupo: Number(valorGrupoId),
+        id_perfil: 2,
         correo: valorCorreo,
         usuario: valorUsuario,
         password: valorPassword,
@@ -125,21 +353,8 @@ function BotonEditar({ row, token, onSuccess }: BotonEditarProps) {
         throw new Error(apiMsg || "Error en la actualización.");
       }
 
-      console.log("✅ Edit successful. Response:", resData);
-
       // El backend devuelve { id: 5023 } (solo el ID del registro modificado)
       const modifiedId = resData?.id;
-
-      console.log(
-        "📝 Modified ID extracted:",
-        modifiedId,
-        "Type:",
-        typeof modifiedId,
-      );
-
-      if (!modifiedId && modifiedId !== 0) {
-        console.warn("⚠️ No ID in response, using original row ID:", row.id);
-      }
 
       setOpen(false);
 
@@ -156,7 +371,7 @@ function BotonEditar({ row, token, onSuccess }: BotonEditarProps) {
     <>
       <button
         type="button"
-        className="rounded-md border border-sky-600 bg-sky-600 px-2 py-1 text-xs font-medium text-white hover:bg-sky-500"
+        className="rounded-md bg-sky-600 px-2 py-1 text-xs font-medium text-white hover:bg-sky-500"
         onClick={() => {
           setOpen(true);
           setError(null);
@@ -168,109 +383,115 @@ function BotonEditar({ row, token, onSuccess }: BotonEditarProps) {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Editar Administrador</DialogTitle>
+            <DialogTitle className="text-base">
+              Editar Administrador
+            </DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="flex flex-col gap-4">
+          <div className="gap-3 py-2">
+            <div className="flex flex-col gap-2">
               <div>
                 <label className="text-xs font-semibold text-muted-foreground uppercase">
-                  ID Registro
+                  ID: {row.id}
                 </label>
-                <p className="text-sm font-medium">{row.id}</p>
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-muted-foreground uppercase">
-                  Correo
-                </label>
+                <GrupoComboboxField
+                  groups={groups}
+                  value={valorGrupo}
+                  onChange={(text) => {
+                    setValorGrupo(text);
+                    setValorGrupoId("");
+                  }}
+                  onSelect={(option) => {
+                    setValorGrupo(option.label);
+                    setValorGrupoId(option.id);
+                  }}
+                  disabled={loading}
+                />
+              </div>
+
+              <div>
                 <Input
                   value={valorCorreo}
                   onChange={(e) => setValorCorreo(e.target.value)}
-                  placeholder="correo@example.com"
+                  placeholder="Correo"
                   disabled={loading}
+                  className="text-xs h-8"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-muted-foreground uppercase">
-                  Usuario
-                </label>
                 <Input
                   value={valorUsuario}
                   onChange={(e) => setValorUsuario(e.target.value)}
-                  placeholder="usuario"
+                  placeholder="Usuario"
                   disabled={loading}
+                  className="text-xs h-8"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-muted-foreground uppercase">
-                  Contraseña
-                </label>
                 <Input
                   type="password"
                   value={valorPassword}
                   onChange={(e) => setValorPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="Contraseña"
                   disabled={loading}
+                  className="text-xs h-8"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-muted-foreground uppercase">
-                  Nombre
-                </label>
                 <Input
                   value={valorNombre}
                   onChange={(e) => setValorNombre(e.target.value)}
                   placeholder="Nombre"
                   disabled={loading}
+                  className="text-xs h-8"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-muted-foreground uppercase">
-                  Apellido Paterno
-                </label>
                 <Input
                   value={valorApellidoPaterno}
                   onChange={(e) => setValorApellidoPaterno(e.target.value)}
-                  placeholder="Apellido paterno"
+                  placeholder="Apellido Paterno"
                   disabled={loading}
+                  className="text-xs h-8"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-muted-foreground uppercase">
-                  Apellido Materno
-                </label>
                 <Input
                   value={valorApellidoMaterno}
                   onChange={(e) => setValorApellidoMaterno(e.target.value)}
-                  placeholder="Apellido materno"
+                  placeholder="Apellido Materno"
                   disabled={loading}
+                  className="text-xs h-8"
                 />
               </div>
 
               {error && (
-                <div className="rounded-md bg-red-50 p-3">
-                  <p className="text-sm text-red-600">{error}</p>
+                <div className="rounded-md bg-red-50 p-2">
+                  <p className="text-xs text-red-600">{error}</p>
                 </div>
               )}
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2">
             <Button
               variant="outline"
               onClick={() => setOpen(false)}
               disabled={loading}
+              className="h-8 px-3 text-xs"
             >
               Cancelar
             </Button>
             <Button
               onClick={handleUpdate}
               disabled={loading}
-              className="bg-sky-600"
+              className="h-8 px-3 text-xs bg-sky-600 hover:bg-sky-500"
             >
               {loading ? "Guardando..." : "Confirmar"}
             </Button>
@@ -280,6 +501,358 @@ function BotonEditar({ row, token, onSuccess }: BotonEditarProps) {
     </>
   );
 }
+
+//COMPONENTE BOTON INSERTAR
+function BotonInserta({
+  token,
+  groups,
+  disabled,
+  onSuccess,
+}: BotonInsertarProps) {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [valorCorreo, setValorCorreo] = useState("");
+  const [valorUsuario, setValorUsuario] = useState("");
+  const [valorPassword, setValorPassword] = useState("");
+  const [valorNombre, setValorNombre] = useState("");
+  const [valorApellidoPaterno, setValorApellidoPaterno] = useState("");
+  const [valorApellidoMaterno, setValorApellidoMaterno] = useState("");
+  const [valorGrupo, setValorGrupo] = useState("");
+  const [valorGrupoId, setValorGrupoId] = useState("");
+
+  const handleInsert = async () => {
+    if (!valorCorreo || !valorCorreo.includes("@")) {
+      setError("El correo electrónico es obligatorio y debe ser válido.");
+      return;
+    }
+
+    if (!valorUsuario) {
+      setError("El nombre de usuario es obligatorio.");
+      return;
+    }
+
+    if (!valorPassword) {
+      setError("La contraseña es obligatoria.");
+      return;
+    }
+
+    if (!valorNombre) {
+      setError("El nombre es obligatorio.");
+      return;
+    }
+
+    if (!valorApellidoPaterno) {
+      setError("El apellido paterno es obligatorio.");
+      return;
+    }
+
+    if (!valorGrupoId) {
+      setError("Selecciona un grupo de la lista.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      let datos = {
+        tl: "cat_user",
+        indicador_id_user_prov_ase: 1,
+        id_grupo: Number(valorGrupoId),
+        id_perfil: 2,
+        correo: valorCorreo,
+        usuario: valorUsuario,
+        password: valorPassword,
+        nombre: valorNombre,
+        apellido_Paterno: valorApellidoPaterno,
+        apellido_Materno: valorApellidoMaterno,
+      };
+
+      const response = await fetch("/api/insertar", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(datos),
+      });
+
+      const resData = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        const apiMsg =
+          typeof resData?.error === "string" ? resData.error : null;
+        throw new Error(apiMsg || "Error en la inserción.");
+      }
+
+      const insertedId = extractInsertedId(resData);
+
+      if (!insertedId) {
+        throw new Error("No se recibió el id del registro insertado.");
+      }
+
+      setValorCorreo("");
+      setValorUsuario("");
+      setValorPassword("");
+      setValorNombre("");
+      setValorApellidoPaterno("");
+      setValorApellidoMaterno("");
+      setValorGrupo("");
+      setValorGrupoId("");
+      id_perfil: "2";
+      setOpen(false);
+
+      // Notificar al padre para insertar solo la nueva fila en memoria.
+      onSuccess(insertedId);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        className="rounded-md bg-sky-600 px-2 py-1 text-xs font-medium text-white hover:bg-sky-500"
+        disabled={disabled}
+        onClick={() => {
+          setOpen(true);
+          setError(null);
+        }}
+      >
+        + Agregar
+      </button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="text-base">
+              Agregar Administrador
+            </DialogTitle>
+          </DialogHeader>
+          <div className="gap-3 py-2">
+            <div className="flex flex-col gap-2">
+              <div>
+                <GrupoComboboxField
+                  groups={groups}
+                  value={valorGrupo}
+                  onChange={(text) => {
+                    setValorGrupo(text);
+                    setValorGrupoId("");
+                  }}
+                  onSelect={(option) => {
+                    setValorGrupo(option.label);
+                    setValorGrupoId(option.id);
+                  }}
+                  disabled={loading}
+                />
+              </div>
+
+              <div>
+                <Input
+                  value={valorCorreo}
+                  onChange={(e) => setValorCorreo(e.target.value)}
+                  placeholder="Correo"
+                  disabled={loading}
+                  className="text-xs h-8"
+                />
+              </div>
+
+              <div>
+                <Input
+                  value={valorUsuario}
+                  onChange={(e) => setValorUsuario(e.target.value)}
+                  placeholder="Usuario"
+                  disabled={loading}
+                  className="text-xs h-8"
+                />
+              </div>
+
+              <div>
+                <Input
+                  type="password"
+                  value={valorPassword}
+                  onChange={(e) => setValorPassword(e.target.value)}
+                  placeholder="Contraseña"
+                  disabled={loading}
+                  className="text-xs h-8"
+                />
+              </div>
+
+              <div>
+                <Input
+                  value={valorNombre}
+                  onChange={(e) => setValorNombre(e.target.value)}
+                  placeholder="Nombre"
+                  disabled={loading}
+                  className="text-xs h-8"
+                />
+              </div>
+
+              <div>
+                <Input
+                  value={valorApellidoPaterno}
+                  onChange={(e) => setValorApellidoPaterno(e.target.value)}
+                  placeholder="Apellido Paterno"
+                  disabled={loading}
+                  className="text-xs h-8"
+                />
+              </div>
+
+              <div>
+                <Input
+                  value={valorApellidoMaterno}
+                  onChange={(e) => setValorApellidoMaterno(e.target.value)}
+                  placeholder="Apellido Materno"
+                  disabled={loading}
+                  className="text-xs h-8"
+                />
+              </div>
+
+              {error && (
+                <div className="rounded-md bg-red-50 p-2">
+                  <p className="text-xs text-red-600">{error}</p>
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={loading}
+              className="h-8 px-3 text-xs"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleInsert}
+              disabled={loading}
+              className="h-8 px-3 text-xs bg-sky-600 hover:bg-sky-500"
+            >
+              {loading ? "Guardando..." : "Agregar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+//FIN BOTON INSERTAR
+
+// --- COMPONENTE BOTÓN EDITAR ---
+// Agregamos 'onSuccess' a las propiedades para que la tabla se entere del cambio
+
+function BotonEliminar({ row, token, onSuccess }: BotonEliminarProps) {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Actualizar valores cuando el row cambie (después de edición exitosa)
+  useEffect(() => {
+    if (open) return; // No actualizar mientras está abierto el modal
+  }, [row]);
+
+  const handleUpdate = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      let datos = {
+        tl: "cat_user",
+        indicador_id_user_prov_ase: 1,
+        id: row.id,
+      };
+
+      const response = await fetch("/api/eliminar", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(datos),
+      });
+
+      const resData = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        const apiMsg =
+          typeof resData?.error === "string" ? resData.error : null;
+        throw new Error(apiMsg || "Error en la eliminación.");
+      }
+
+      // El backend devuelve { id: 5023 } (solo el ID del registro eliminado)
+      const modifiedId = resData?.id;
+
+      setOpen(false);
+
+      // Notificar al padre para que recargue el registro eliminado
+      onSuccess(row, modifiedId ?? row.id);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        className="rounded-md bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-500"
+        onClick={() => {
+          setOpen(true);
+          setError(null);
+        }}
+      >
+        Eliminar
+      </button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-[300px]">
+          <DialogHeader>
+            <DialogTitle className="text-base">
+              Eliminar Administrador
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2">
+            <p className="text-sm text-muted-foreground">
+              ¿Estás seguro de que deseas eliminar al administrador con ID{" "}
+              <strong>{row.id}</strong>?
+            </p>
+            {error && (
+              <div className="rounded-md bg-red-50 p-2 mt-3">
+                <p className="text-xs text-red-600">{error}</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={loading}
+              className="h-8 px-3 text-xs"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleUpdate}
+              disabled={loading}
+              className="h-8 px-3 text-xs bg-red-600 hover:bg-red-500"
+            >
+              {loading ? "Eliminando..." : "Eliminar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 export default function AdminsPage() {
   // 1. Estados para los datos (Extraídos de tu app/page.tsx)
   const [token, setToken] = useState<string | null>(null);
@@ -291,155 +864,10 @@ export default function AdminsPage() {
   const [loadingRows, setLoadingRows] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Recarga solo el registro modificado desde el backend
-  const reloadModifiedRecord = useCallback(
-    async (recordId: string | number) => {
-      // Normalizar el ID para comparación
-      const normalizedRecordId = String(recordId ?? "").trim();
-      console.log(
-        "🔄 Reloading record ID:",
-        recordId,
-        "(normalized:",
-        normalizedRecordId,
-        ") Group:",
-        selectedGroup,
-      );
-
-      if (!token || !selectedGroup) {
-        console.warn("Missing token or selectedGroup");
-        return;
-      }
-
-      try {
-        const response = await fetch("/api/admins", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ grupo: selectedGroup.trim() }),
-        });
-
-        console.log("📡 Response status:", response.status);
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("❌ Response not ok:", errorText);
-          return;
-        }
-
-        const data = await response.json();
-        console.log("📦 Full response:", data);
-
-        // La estructura de /api/admins es { data: rows }
-        let allAdmins = data?.data || [];
-
-        // Si allAdmins es vacío, intenta otras estructuras comunes
-        if (!Array.isArray(allAdmins) || allAdmins.length === 0) {
-          allAdmins = Array.isArray(data) ? data : [];
-          console.log("⚠️ Fallback to direct array:", allAdmins);
-        }
-
-        console.log("👥 All admins (", allAdmins.length, "):", allAdmins);
-
-        // Buscar el registro modificado con comparación normalizada
-        const updatedRecord = allAdmins.find((r: RowData) => {
-          const rId = String(r.id ?? "").trim();
-          const matches = rId === normalizedRecordId;
-          if (!matches) {
-            console.log(`  - ID ${rId} !== ${normalizedRecordId}`);
-          }
-          return matches;
-        });
-
-        console.log("🔍 Updated record found:", updatedRecord);
-
-        if (updatedRecord) {
-          console.log(
-            "✅ Updating table with new record data. Correo:",
-            updatedRecord.correo,
-          );
-          // Reemplazar solo ese registro en la tabla
-          setRows((prevRows) => {
-            const updated = prevRows.map((r) => {
-              const match = String(r.id ?? "").trim() === normalizedRecordId;
-              return match ? updatedRecord : r;
-            });
-            console.log("📊 New rows state (", updated.length, " records)");
-            return updated;
-          });
-        } else {
-          console.warn(
-            `❌ Updated record not found. Looking for normalized ID: ${normalizedRecordId}`,
-          );
-          console.warn(
-            "Available IDs:",
-            allAdmins.map((r: RowData) => ({
-              id: r.id,
-              normalized: String(r.id ?? "").trim(),
-            })),
-          );
-        }
-      } catch (err) {
-        console.error("❌ Error al recargar registro modificado:", err);
-      }
-    },
-    [token, selectedGroup],
-  );
-
-  // Actualiza solo la fila editada sin recargar toda la tabla.
-  const applyEditLocally = useCallback(
-    (editedRow: RowData, idModificado: string | number) => {
-      console.log("🎯 applyEditLocally called with ID:", idModificado);
-      // El backend devuelve el ID del registro modificado
-      reloadModifiedRecord(idModificado);
-    },
-    [reloadModifiedRecord],
-  );
-
-  const columns = useMemo(
-    () => [
-      { id: "nombreGrupo", header: "Grupo", priority: 1 },
-      { id: "usuario", header: "Usuario", priority: 2 },
-      { id: "perfil", header: "Perfil", priority: 3 },
-      { id: "nombreUsuario", header: "Nombre y apellidos", priority: 4 },
-      { id: "correo", header: "Correo", priority: 5 },
-      {
-        id: "usuariosRegistrados",
-        header: "Cantidad de usuarios registrados",
-        priority: 6,
-      },
-      {
-        id: "totales",
-        header: "Cantidad de usuarios con test concluidos",
-        priority: 7,
-      },
-      {
-        id: "parciales",
-        header: "Cantidad de usuarios con test parcial",
-        priority: 8,
-      },
-
-      {
-        id: "Editar",
-        header: "Acción",
-        priority: 9,
-        render: (row: RowData) => (
-          <BotonEditar
-            row={row}
-            token={token || ""}
-            onSuccess={applyEditLocally}
-          />
-        ),
-      },
-    ],
-    [token, applyEditLocally],
-  ); // Se recalcula si cambian las filas
-
   const handleLimpiarFiltros = () => {
-    // Resetea el valor del selector
-    setRows([]); // Vacía la tabla de resultados
-    setError(null); // Limpia posibles errores previos
-    setSelectedGroup(""); // limpia el combo/input
+    setError(null);
+    setSelectedGroup("");
+    void loadRows();
   };
 
   // 2. Recuperar el token (Si lo guardaste en localStorage o similar al loguear)
@@ -449,7 +877,7 @@ export default function AdminsPage() {
     if (savedToken) setToken(savedToken);
   }, []);
 
-  // 3. Lógica de carga de grupos (Tu misma función de app/page.tsx)
+  // 3. Lógica de carga de grupos
   useEffect(() => {
     if (!token) return;
     const loadGroups = async () => {
@@ -458,9 +886,9 @@ export default function AdminsPage() {
         const response = await fetch("/api/grupos", {
           headers: { Authorization: `Bearer ${token}` },
         });
+        if (!response.ok) throw new Error("Failed to load grupos");
         const data = await response.json();
-        // Aquí usas tu función normalizeClientGroups que ya tienes
-        setGroups(data?.data || []);
+        setGroups(Array.isArray(data?.data) ? data.data : []);
       } catch (err) {
         setError("Error al cargar grupos");
       } finally {
@@ -472,18 +900,21 @@ export default function AdminsPage() {
 
   // 4. Carga de filas (Administradores)
   const loadRows = useCallback(
-    async (grupo: string) => {
+    async (grupo?: string) => {
       if (!token) return;
       try {
         setLoadingRows(true);
         setError(null);
+        const grupoNormalizado = String(grupo ?? "").trim();
         const response = await fetch("/api/admins", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ grupo: grupo.trim() }),
+          body: JSON.stringify(
+            grupoNormalizado ? { grupo: grupoNormalizado } : {},
+          ),
         });
         const data = await response.json().catch(() => ({}));
 
@@ -512,6 +943,61 @@ export default function AdminsPage() {
     [token],
   );
 
+  const handleMutationSuccess = useCallback(() => {
+    void loadRows(selectedGroup.trim());
+  }, [loadRows, selectedGroup]);
+
+  const columns = useMemo(
+    () => [
+      { id: "nombreGrupo", header: "Grupo", priority: 1 },
+      { id: "usuario", header: "Usuario", priority: 2 },
+      { id: "perfil", header: "Perfil", priority: 3 },
+      { id: "nombreUsuario", header: "Nombre y apellidos", priority: 4 },
+      { id: "correo", header: "Correo", priority: 5 },
+      {
+        id: "usuariosRegistrados",
+        header: "Cantidad de usuarios registrados",
+        priority: 6,
+      },
+      {
+        id: "totales",
+        header: "Cantidad de usuarios con test concluidos",
+        priority: 7,
+      },
+      {
+        id: "parciales",
+        header: "Cantidad de usuarios con test parcial",
+        priority: 8,
+      },
+      {
+        id: "Acciones",
+        header: "Acciones",
+        priority: 9,
+        render: (row: RowData) => (
+          <div className="flex gap-1 -mx-2">
+            <BotonEditar
+              row={row}
+              token={token || ""}
+              groups={groups}
+              onSuccess={handleMutationSuccess}
+            />
+            <BotonEliminar
+              row={row}
+              token={token || ""}
+              onSuccess={handleMutationSuccess}
+            />
+          </div>
+        ),
+      },
+    ],
+    [token, groups, handleMutationSuccess],
+  ); // Se recalcula si cambian las filas
+
+  useEffect(() => {
+    if (!token) return;
+    void loadRows();
+  }, [token, loadRows]);
+
   if (!isMounted) return <div className="p-8">Cargando...</div>;
   if (!token)
     return <div className="p-8">No autorizado. Por favor, inicia sesión.</div>;
@@ -534,8 +1020,7 @@ export default function AdminsPage() {
         selectedGroup={selectedGroup}
         onSelectedGroupChange={(v) => setSelectedGroup(v)}
         onSearch={() => {
-          const grupo = selectedGroup.trim();
-          if (grupo) void loadRows(grupo);
+          void loadRows(selectedGroup.trim());
         }}
         onClear={handleLimpiarFiltros}
         loadingGroups={loadingGroups}
@@ -545,6 +1030,14 @@ export default function AdminsPage() {
 
       <section className="space-y-4">
         <div className="bg-zinc-50 p-4 rounded-lg border">
+          <div className="mb-4">
+            <BotonInserta
+              token={token || ""}
+              groups={groups}
+              disabled={loadingRows}
+              onSuccess={handleMutationSuccess}
+            />
+          </div>
           <h2 className="text-lg font-semibold text-zinc-800 mb-4">
             Listado de Alumnos
           </h2>
