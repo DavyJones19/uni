@@ -17,6 +17,7 @@ import {
 import { TablaAlumnos } from "@/app/(dashboard)/TablaAlumnos";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import * as XLSX from "xlsx";
 
 type RowData = Record<string, any>;
 
@@ -947,7 +948,7 @@ export default function AdminsPage() {
     void loadRows(selectedGroup.trim());
   }, [loadRows, selectedGroup]);
 
-  const columns = useMemo(
+  const columns = useMemo<ColumnDef<RowData>[]>(
     () => [
       { id: "nombreGrupo", header: "Grupo", priority: 1 },
       { id: "usuario", header: "Usuario", priority: 2 },
@@ -993,6 +994,42 @@ export default function AdminsPage() {
     [token, groups, handleMutationSuccess],
   ); // Se recalcula si cambian las filas
 
+  const exportableColumns = useMemo(
+    () =>
+      columns.filter(
+        (column) =>
+          column.id !== "Acciones" && typeof column.render !== "function",
+      ),
+    [columns],
+  );
+
+  const handleExportExcel = useCallback(() => {
+    if (rows.length === 0) {
+      setError("No hay datos para exportar.");
+      return;
+    }
+
+    const exportRows = rows.map((row) => {
+      const record: Record<string, unknown> = {};
+      for (const column of exportableColumns) {
+        record[column.header] = row[column.id] ?? "";
+      }
+      return record;
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Administradores");
+
+    const normalizedGroup = selectedGroup.trim();
+    const safeGroup = normalizedGroup
+      ? normalizedGroup.replace(/[^a-zA-Z0-9_-]+/g, "_")
+      : "todos";
+    const fileName = `administradores_${safeGroup}.xlsx`;
+
+    XLSX.writeFile(workbook, fileName);
+  }, [rows, exportableColumns, selectedGroup]);
+
   useEffect(() => {
     if (!token) return;
     void loadRows();
@@ -1030,13 +1067,22 @@ export default function AdminsPage() {
 
       <section className="space-y-4">
         <div className="bg-zinc-50 p-4 rounded-lg border">
-          <div className="mb-4">
+          <div className="mb-4 flex items-center gap-2">
             <BotonInserta
               token={token || ""}
               groups={groups}
               disabled={loadingRows}
               onSuccess={handleMutationSuccess}
             />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleExportExcel}
+              disabled={loadingRows}
+              className="h-8 px-3 text-xs"
+            >
+              Exportar Excel
+            </Button>
           </div>
           <h2 className="text-lg font-semibold text-zinc-800 mb-4">
             Listado de Alumnos

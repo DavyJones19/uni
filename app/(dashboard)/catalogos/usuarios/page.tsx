@@ -7,6 +7,8 @@ import {
   type GrupoOption,
 } from "@/app/(dashboard)/GrupoSelector";
 import { TablaAlumnos } from "@/app/(dashboard)/TablaAlumnos";
+import { Button } from "@/components/ui/button";
+import * as XLSX from "xlsx";
 
 // --- TIPOS Y FUNCIONES AUXILIARES ---
 type RowData = Record<string, unknown>;
@@ -48,57 +50,46 @@ function renderNombreCompleto(row: RowData) {
   return [nombre, ap, am].filter(Boolean).join(" ").trim();
 }
 
-const DEFAULT_COLUMNS: ColumnDef<RowData>[] = [
-  { id: "GRUPO", header: "Grupo", priority: 1 },
-  {
-    id: "NOMBRE_COMPLETO",
-    header: "Nombre completo",
-    priority: 2,
-    render: renderNombreCompleto,
-  },
-  { id: "USUARIO", header: "Usuario", priority: 3 },
-  { id: "PWD", header: "Contraseña", priority: 4 },
-  { id: "CORREO", header: "Correo", priority: 5 },
-  { id: "FECHA_REGISTRO", header: "Fecha registro", priority: 6 },
-  { id: "METRICA", header: "Métrica", priority: 7 },
-  { id: "TEST_190", header: "Test 190", priority: 8 },
-  { id: "TEST_FINAL", header: "Test final", priority: 9 },
-  {
-    id: "DESCARGAR_RESUMEN",
-    header: "Descargar resumen",
-    priority: 5,
-    render: (row: RowData) => {
-      const raw = row["ind_terminado"];
-      const terminado = raw === 1 || raw === "1" || raw === true;
-      if (!terminado) return null;
-      return (
-        <button
-          type="button"
-          className="rounded-md border border-sky-600 bg-sky-600 px-2 py-1 text-xs font-medium text-white hover:bg-sky-500"
-          onClick={() => handleDescargarResumen(row)}
-        >
-          Descargar
-        </button>
-      );
-    },
-  },
-];
-
 function buildColumns(
   rows: RowData[],
   defaults: ColumnDef<RowData>[],
   hidden: Set<string>,
-) {
-  const fromConfig = defaults
+): ColumnDef<RowData>[] {
+  const fromConfig: ColumnDef<RowData>[] = defaults
     .map((col) => ({ ...col, accessorKey: col.id }))
     .filter((col) => !hidden.has(col.id));
+
   const existingIds = new Set(fromConfig.map((col) => col.id));
   const extraKeys = rows.length > 0 ? Object.keys(rows[0]) : [];
-  const extraColumns = extraKeys
+  const extraColumns: ColumnDef<RowData>[] = extraKeys
     .filter((key) => !existingIds.has(key) && !hidden.has(key))
-    .map((key) => ({ id: key, header: key, accessorKey: key, priority: 999 }));
+    .map((key) => ({
+      id: key,
+      header: key,
+      accessorKey: key,
+      priority: 999,
+    }));
+
   return [...fromConfig, ...extraColumns];
 }
+
+// --- PROCESO DE EXPORTACIÓN A EXCEL ---
+// Filtra las columnas exportables para el Excel:
+// - Excluye la columna de descarga de resumen PDF
+// - Excluye la columna de acciones
+// - Excluye cualquier columna que tenga una función render personalizada
+// Esto asegura que solo se exporten columnas con datos planos y legibles.
+const EXPORTABLE_COLUMNS = new Set<string>([
+  "GRUPO",
+  "NOMBRE_COMPLETO",
+  "USUARIO",
+  "PWD",
+  "CORREO",
+  "FECHA_REGISTRO",
+  "METRICA",
+  "TEST_190",
+  "TEST_FINAL",
+]);
 
 export default function UsuariosPage() {
   // 1. Estados para los datos (Extraídos de tu app/page.tsx)
@@ -191,11 +182,95 @@ export default function UsuariosPage() {
     void loadRows();
   }, [token, loadRows]);
 
+  const baseColumns = useMemo<ColumnDef<RowData>[]>(
+    () => [
+      { id: "GRUPO", header: "Grupo", priority: 1 },
+      {
+        id: "NOMBRE_COMPLETO",
+        header: "Nombre completo",
+        priority: 2,
+        render: renderNombreCompleto,
+      },
+      { id: "USUARIO", header: "Usuario", priority: 3 },
+      { id: "PWD", header: "Contraseña", priority: 4 },
+      { id: "CORREO", header: "Correo", priority: 5 },
+      { id: "FECHA_REGISTRO", header: "Fecha registro", priority: 6 },
+      { id: "METRICA", header: "Métrica", priority: 7 },
+      { id: "TEST_190", header: "Test 190", priority: 8 },
+      { id: "TEST_FINAL", header: "Test final", priority: 9 },
+      {
+        id: "DESCARGAR_RESUMEN",
+        header: "Descargar resumen",
+        priority: 10,
+        render: (row: RowData) => {
+          const raw = row["ind_terminado"];
+          const terminado = raw === 1 || raw === "1" || raw === true;
+          if (!terminado) return null;
+          return (
+            <button
+              type="button"
+              className="rounded-md border border-sky-600 bg-sky-600 px-2 py-1 text-xs font-medium text-white hover:bg-sky-500"
+              onClick={() => handleDescargarResumen(row)}
+            >
+              Descargar
+            </button>
+          );
+        },
+      },
+    ],
+    [],
+  );
+
+  const columns: ColumnDef<RowData>[] = useMemo(
+    () => buildColumns(rows, baseColumns, HIDDEN_COLUMN_IDS),
+    [rows, baseColumns],
+  );
+
+  const exportableColumns = useMemo(
+    () =>
+      columns.filter(
+        (column) =>
+          column.id !== "DESCARGAR_RESUMEN" &&
+          column.id !== "Acciones" &&
+          !("render" in column && typeof column.render === "function"),
+      ),
+    [columns],
+  );
+
+  const handleExportExcel = useCallback(() => {
+    if (rows.length === 0) {
+      setError("No hay datos para exportar."); // Validación: No exportar si no hay datos.
+      return;
+    }
+
+    // Transformamos las filas en un formato adecuado para el archivo Excel.
+    const exportRows = rows.map((row) => {
+      const record: Record<string, unknown> = {};
+      for (const column of exportableColumns) {
+        record[column.header] = row[column.id] ?? ""; // Asignamos valores por columna.
+      }
+      return record;
+    });
+
+    // Creamos una hoja de cálculo y un libro de trabajo.
+    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Usuarios");
+
+    // Generamos un nombre de archivo seguro basado en el grupo seleccionado.
+    const normalizedGroup = selectedGroup.trim();
+    const safeGroup = normalizedGroup
+      ? normalizedGroup.replace(/[^a-zA-Z0-9_-]+/g, "_")
+      : "todos";
+    const fileName = `usuarios_${safeGroup}.xlsx`;
+
+    // Escribimos el archivo Excel y lo descargamos.
+    XLSX.writeFile(workbook, fileName);
+  }, [rows, exportableColumns, selectedGroup]);
+
   if (!isMounted) return <div className="p-8">Cargando...</div>;
   if (!token)
     return <div className="p-8">No autorizado. Por favor, inicia sesión.</div>;
-
-  const columns = buildColumns(rows, DEFAULT_COLUMNS, HIDDEN_COLUMN_IDS);
 
   return (
     <div className="mx-auto w-full max-w-[96rem] px-4 py-8 flex flex-col gap-6 bg-white min-h-screen">
@@ -221,6 +296,17 @@ export default function UsuariosPage() {
 
       <section className="space-y-4">
         <div className="bg-zinc-50 p-4 rounded-lg border">
+          <div className="mb-4 flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleExportExcel}
+              disabled={loadingRows}
+              className="h-8 px-3 text-xs"
+            >
+              Exportar Excel
+            </Button>
+          </div>
           <h2 className="text-lg font-semibold text-zinc-800 mb-4">
             Listado de Alumnos
           </h2>

@@ -8,6 +8,7 @@ import {
 } from "@/app/(dashboard)/GrupoSelector";
 import { TablaGrupos } from "@/app/(dashboard)/TablaGrupos";
 import { Button } from "@/components/ui/button";
+import * as XLSX from "xlsx";
 import {
   Dialog,
   DialogContent,
@@ -375,10 +376,12 @@ export default function GruposPage() {
   );
 
   // Definición de columnas dentro del componente para acceder a 'updateLocalRow'
-  const columns = useMemo(
+  const columns = useMemo<ColumnDef<RowData>[]>(
     () => [
       { id: "GRUPO", header: "Grupo", priority: 1 },
       { id: "TOTAL", header: "Licencias totales", priority: 2 },
+      { id: "CON_REGISTRO", header: "Licencias con registro", priority: 2 },
+      { id: "EN_PROCESO", header: "Licencias en proceso", priority: 2 },
       { id: "TERMINADOS", header: "Licencias terminadas", priority: 5 },
       {
         id: "Editar",
@@ -395,6 +398,38 @@ export default function GruposPage() {
     ],
     [token, handleEditSuccess],
   ); // Se recalcula si cambian las filas
+
+  //boton exportar a excel
+  const exportableColumns = useMemo(
+    () =>
+      columns.filter(
+        (column) =>
+          column.id !== "Acciones" && typeof column.render !== "function",
+      ),
+    [columns],
+  );
+
+  const handleExportExcel = useCallback(() => {
+    if (rows.length === 0) {
+      setError("No hay datos para exportar.");
+      return;
+    }
+
+    const exportRows = rows.map((row) => {
+      const record: Record<string, unknown> = {};
+      for (const column of exportableColumns) {
+        record[column.header] = row[column.id] ?? "";
+      }
+      return record;
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Grupos");
+
+    const fileName = `grupos_exportados.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+  }, [rows, exportableColumns]);
 
   useEffect(() => {
     if (!token) return;
@@ -423,12 +458,21 @@ export default function GruposPage() {
         error={error}
       />
       <section className="bg-zinc-50 p-4 rounded-lg border">
-        <div className="mb-4">
+        <div className="mb-4 flex items-center gap-2">
           <BotonInserta
             token={token || ""}
             disabled={loadingRows}
             onSuccess={handleInsertSuccess}
           />
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleExportExcel}
+            disabled={loadingRows}
+            className="h-8 px-3 text-xs"
+          >
+            Exportar Excel
+          </Button>
         </div>
         <TablaGrupos columns={columns} data={rows} />
       </section>
