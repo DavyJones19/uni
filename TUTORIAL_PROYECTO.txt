@@ -23,6 +23,449 @@
 • Paginación (en este proyecto): los alumnos llegan todos en un array desde la API;
   la tabla **parte el array en el cliente** (`slice`) y muestra "Mostrando X–Y de Z"
   y "Página N de M". No es paginación en el servidor (no hay `?page=` en la API).
+• Proxy Pattern: Los Route Handlers (`app/api/`) actúan como intermediarios entre
+  el navegador y las APIs externas. El cliente nunca toca directamente URLs externas;
+  todo pasa por `/api/...` en tu servidor.
+
+================================================================================
+--- DIAGRAMA DE FLUJO DE LA APLICACIÓN ---
+
+1. INICIO (SIN TOKEN)
+   → Navegador carga app/page.tsx
+   → Muestra LoginForm (components/LoginForm.tsx)
+   
+2. LOGIN
+   Usuario ingresa credenciales
+   → POST /api/login (Route Handler)
+   → Proxy del servidor consulta EXTERNAL_LOGIN_URL
+   → Respuesta con token → Guardado en localStorage
+   → isAuthenticated = true
+   
+3. POST-LOGIN (CON TOKEN)
+   → Página recarga: now isAuthenticated == true
+   → Muestra Navbar + dashboard (componentes de catalogos)
+   → Navbar incluye navegación a:
+      • /catalogos/usuarios - Tabla de usuarios
+      • /catalogos/grupos - Tabla de grupos
+      • /catalogos/administradores - Tabla de administradores
+   
+4. SELECCIÓN DE GRUPO (en dashboard)
+   Usuario selecciona grupo → GrupoSelector.tsx
+   → useEffect carga grupos: GET /api/grupos
+   → onClick "Buscar" → POST /api/alumnos { grupo: "X" }
+   → Tabla de alumnos refresca con paginación cliente
+   
+================================================================================
+--- ESTRUCTURA DE COMPONENTES ---
+
+ROOT LAYOUT (app/layout.tsx)
+└── HTML, metadatos SEO, fuentes Geist
+    
+PÁGINA PRINCIPAL (app/page.tsx) ← CLIENT COMPONENT
+├── Estado: token, usuario, pwd, loading, error
+├── Condicional: ¿token? → mostrar dashboard : mostrar login
+└── Si token:
+    └── Navbar (navegación global)
+        └── (dashboard) layout + páginas de catalogos
+            ├── /catalogos/usuarios/page.tsx → Tabla usuarios
+            ├── /catalogos/grupos/page.tsx → Tabla grupos
+            ├── /catalogos/administradores/page.tsx → Tabla admins
+            
+DASHBOARD COMPONENTS:
+├── GrupoSelector.tsx ← CLIENT COMPONENT
+│   └── <select> con búsqueda automática (useMemo, deduplicación)
+│   └── Botones: "Buscar" y "Limpiar"
+│   
+├── TablaAlumnos.tsx ← CLIENT COMPONENT (generic)
+│   └── Wrapper que envuelve DataTablePriority
+│   └── Recibe columns + data como props
+│   
+└── DataTablePriority.tsx ← CLIENT COMPONENT (generic)
+    └── Tabla React renderizada con paginación cliente
+    └── Estados: currentPage, pageSize, rowsPerPage
+    └── Footer con "Página X de Y" y selector de tamaño
+
+================================================================================
+--- ARCHIVO: app/page.tsx (PUNTO DE ENTRADA) ---
+
+Propósito: Página principal. Punto de entrada a la aplicación. Controla login y
+navegación post-autenticación.
+
+Líneas clave:
+  1-2   "use client" — declara que es componente cliente.
+  5-11  Imports: React, componentes de login y dashboard.
+  
+  22-27 Estado de login: token, usuario, pwd, loadingLogin, error.
+  28    Derivado: isAuthenticated = Boolean(token) — si token existe, usuario logueado.
+  
+  30-56 handleLogin():
+    - Envía POST /api/login con usuario y contraseña.
+    - Busca token en varias claves (token, Token, access_token, etc.) por flexibilidad.
+    - Guarda en localStorage.setItem("auth_token", tokenStr) para persistencia.
+    - Si falla, muestra error.
+  
+  58-68 Renderizado condicional:
+    - Si NO autenticado: muestra LoginForm (centrado).
+    - Si autenticado: muestra bienvenida con Navbar.
+    
+  64-80 Pantalla de bienvenida (post-login):
+    - Titulo "BIENVENIDO" en dorado.
+    - Imagen logo_talent_mejorada.png desde /public.
+    - Navbar en el top (navegación global).
+    - Las rutas /catalogos/... se cargan en (dashboard) layout.
+
+================================================================================
+--- ARCHIVO: app/(dashboard)/layout.tsx (LAYOUT PROTEGIDO) ---
+
+Propósito: Layout wrapper para rutas bajo /(dashboard) — todas comparten Navbar.
+La carpeta con () no afecta la URL (ruta de grupo, semantic only).
+
+Líneas:
+  1-2   Imports: React y Navbar.
+  
+  4-14  DashboardLayout:
+    - Recibe children (cada página bajo /(dashboard)/...).
+    - Renderiza <Navbar /> + {children}.
+    - Así todas las páginas dentro de (dashboard) ven la Navbar arriba.
+
+================================================================================
+--- ARCHIVO: components/LoginForm.tsx (FORMULARIO DE LOGIN) ---
+
+Propósito: Presentación del formulario (dumb component). No hace fetch; solo recibe
+datos por props y comunica cambios al padre (page.tsx).
+
+Líneas clave:
+  8-17  Tipo LoginFormProps: describe qué debe recibir el componente.
+  
+  20-29 Función LoginForm:
+    - Props destructuradas: usuario, pwd, callbacks (onUsuarioChange, etc.), loading, error.
+    - handleKeyPress: detecta Enter en inputs → llama onSubmit().
+  
+  31-40 Logo <Image> desde /logo_nuevo.jpeg.
+  
+  42-52 Input de usuario:
+    - value={usuario} y onChange sube el cambio al padre.
+    - Controlado: siempre sincro con estado del padre.
+    
+  54-62 Input de contraseña:
+    - type="password" → oculta caracteres.
+    - onKeyDown={handleKeyPress} → Enter envía el form.
+    
+  64-72 Botón "Entrar":
+    - disabled={loadingLogin} → gris si esperando respuesta.
+    - onClick={onSubmit} → llama handleLogin del padre.
+    - Texto: "Ingresando..." o "Entrar" según estado.
+    
+  74-75 Mostrado de errores:
+    - {error && <p>...} — solo si error es truthy.
+
+================================================================================
+--- ARCHIVO: app/api/login/route.ts (ROUTE HANDLER — PROXY DE LOGIN) ---
+
+Propósito: Endpoint /api/login en el SERVIDOR. Proxy seguro hacia EXTERNAL_LOGIN_URL.
+
+Líneas clave:
+  1-3   Imports: NextRequest, NextResponse de next/server.
+  
+  5-7   Variables de entorno (solo servidor):
+    - LOGIN_URL = EXTERNAL_LOGIN_URL || ""
+    - isDev = NODE_ENV === "development"
+    
+  10-13 POST handler:
+    - Valida que LOGIN_URL esté configurada (si no, 503 Service Unavailable).
+    - Lee el body JSON del cliente (credenciales).
+    
+  15-25 fetch() hacia la API externa:
+    - method: "POST"
+    - body: JSON de las credenciales del usuario.
+    - signal: AbortSignal.timeout(30000) — máx 30 segundos, no cuelgues.
+    
+  27-48 Manejo de respuesta:
+    - Si !response.ok (4xx/5xx): retorna error + status original.
+    - Si ok: parsea JSON y retorna al cliente.
+    - Si la API devuelve texto plano: lo envuelve en { data: text }.
+
+    IMPORTANTE: El cliente NUNCA ve EXTERNAL_LOGIN_URL. Todo pasa por este
+    servidor intermedio, así el token y URLs secretas permanecen en el servidor.
+
+================================================================================
+--- ARCHIVO: app/api/grupos/route.ts (ROUTE HANDLER — LISTADO DE GRUPOS) ---
+
+Propósito: GET /api/grupos — proxy que obtiene la lista de grupos desde API externa.
+
+Líneas clave:
+  1-2   Comentario: Route Handler en servidor, sin "use client".
+  
+  5-8   Variables de entorno:
+    - GRUPOS_URL, EXTERNAL_API_TOKEN, EXTERNAL_API_TOKEN_TYPE ("Bearer").
+    
+  10-15 buildAuthHeader(request):
+    - Prioridad 1: Authorization del cliente (token del login del usuario).
+    - Prioridad 2: Token fijo en .env (EXTERNAL_API_TOKEN) si el cliente no envía.
+    
+  17-22 type GrupoOption: estructura { id, label, value } para el combo.
+  
+  24-65 normalizeGroups(payload):
+    - Normaliza respuestas de distintas APIs externas:
+      * Array puro: [grupo1, grupo2] → convierte a GrupoOption.
+      * { data: [...] } → extrae .data.
+      * Valores numéricos o strings: cada uno es un grupo.
+      * Objetos complejos: busca claves como GRUPO, grupo, nombre, Nombre, etc.
+    - Deduplicación: usa un Set para no repetir valores.
+    - Retorna: Array<GrupoOption>.
+    
+  FLEXIBILIDAD: Si tu API externa devuelve { GRUPO: "A", ID_GRUPO: 1 },
+  se normaliza a { id: "1", label: "A", value: "A" } automáticamente.
+
+================================================================================
+--- ARCHIVO: app/api/alumnos/route.ts (ROUTE HANDLER — LISTADO DE ALUMNOS) ---
+
+Propósito: POST /api/alumnos — obtiene filas de alumnos para un grupo específico.
+
+Líneas clave:
+  1-3   Comentario: Route Handler en servidor.
+  
+  5-8   Variables de entorno:
+    - ALUMNOS_URL, ALUMNOS_METHOD (GET o POST, default POST).
+    - Tokens de autenticación (igual que grupos).
+    
+  10-17 buildAuthHeader(): igual que en grupos — client auth o fallback a .env.
+  
+  19-26 extractRows(payload):
+    - Busca el array de filas en: payload directo, payload.data, payload.rows,
+      payload.resultado. Maneja distintas estructuras de respuesta.
+    
+  28-70 POST handler:
+    - Valida ALUMNOS_URL configurada.
+    - Lee { grupo } del body del cliente.
+    - Construye headers con auth.
+    
+    SI ALUMNOS_METHOD === "GET":
+      - Si URL incluye {grupo}: reemplaza placeholder → https://api.ext/alumnos/A.
+      - Si no: agrega query → https://api.ext/alumnos?grupo=A.
+    
+    SI ALUMNOS_METHOD === "POST" (default):
+      - Si URL incluye {grupo}: reemplaza placeholder.
+      - Si no: envía JSON { grupo: "A" } en el body.
+    
+    FLEXIBILIDAD: Tu API externa puede ser GET con {grupo} en path, GET con
+    ?grupo=X en query, o POST con JSON. Configura con env vars.
+
+================================================================================
+--- ARCHIVO: app/(dashboard)/GrupoSelector.tsx (SELECTOR CON SEARCH) ---
+
+Propósito: Componente de selección de grupo con búsqueda interactiva y deduplicación.
+Es un Client Component que mantiene UI state: búsqueda, dropdown abierto, índice
+destacado para navegación con teclado.
+
+Líneas clave:
+  1     "use client"
+  
+  3-7   type GrupoOption: { id, label, value }
+  
+  9-18  type GrupoSelectorProps: props que recibe el componente.
+  
+  20-28 dedupeByValue(groups):
+    - Quita duplicados de un array de GrupoOption filtrando por value.
+    - Usa un Set<string> para rastrear valores vistos.
+    
+  30-35 React.forwardRef<HTMLInputElement, GrupoSelectorProps>:
+    - Permite que el padre pase un `ref` y acceda al input DOM directamente.
+    - Sintaxis: React.forwardRef<tipo_del_dom, tipo_props>(función).
+    
+  40-48 Refs internos:
+    - containerRef: para detectar clicks fuera (cerrar dropdown).
+    - innerInputRef: referencia al <input>, expuesta via forwardRef.
+    
+  50-60 useMemo(() => dedupeByValue(groups), [groups]):
+    - Recalcula lista sin duplicados SOLO cuando `groups` cambia.
+    - Optimización: evita recomputar si props no cambian.
+    
+  62-72 filteredGroups con useMemo:
+    - Filtra uniqueGroups por coincidencia parcial del nombre/valor.
+    - Solo recalcula si uniqueGroups o normalizedQuery cambian.
+    
+  74-86 useEffect: cierra dropdown si haces click fuera del componente.
+  
+  CARACTERÍSTICAS AVANZADAS:
+    - Navegación con teclado: flechas arriba/abajo, Enter para seleccionar.
+    - Búsqueda en tiempo real: filtra a medida que escribes.
+    - Deduplicación automática: maneja duplicados de la API.
+
+================================================================================
+--- ARCHIVO: app/(dashboard)/TablaAlumnos.tsx (WRAPPER DE TABLA) ---
+
+Propósito: Wrapper genérico que envuelve DataTablePriority con estilos.
+
+Líneas clave:
+  1     "use client"
+  
+  3-5   Imports: DataTablePriority y tipo ColumnDef.
+  
+  7-14  type TablaAlumnosProps<TData extends Record<string, unknown>>:
+    - Genérico: TData es "cualquier objeto fila" (usuario, grupo, etc.).
+    - columns: Array de definiciones de columna.
+    - data: Array de filas (usuarios, alumnos, etc.).
+    - emptyMessage, pagination, defaultPageSize, pageSizeOptions: opcionales.
+    
+  16-32 export function TablaAlumnos<TData>:
+    - Componente genérico: al usarlo, TypeScript infiere TData desde `data`.
+    - Renderiza <section> con bordes y padding.
+    - Pasa todo a DataTablePriority que hace el trabajo real.
+    
+  USO TÍPICO:
+    <TablaAlumnos
+      columns={[
+        { header: "Nombre", accessorKey: "nombre" },
+        { header: "Email", accessorKey: "email" }
+      ]}
+      data={alumnos}
+      pagination={true}
+      defaultPageSize={10}
+    />
+
+================================================================================
+--- ARCHIVO: app/(dashboard)/DataTablePriority.tsx (TABLA RENDERIZADA) ---
+
+Propósito: Tabla React genérica con paginación cliente, rendering flexible.
+
+Líneas clave (referencia, archivo grande):
+  - Estado: currentPage, pageSize, sortConfig.
+  - useMemo para calcular indices de paginación:
+    * startIndex = (currentPage - 1) * pageSize
+    * endIndex = startIndex + pageSize
+    * Filas mostradas = data.slice(startIndex, endIndex)
+  
+  - renderCell(): renderiza cada celda (string, número, JSX custom).
+  - handlePreviousPage() / handleNextPage() / handlePageChange(): navegación.
+  - Footer con info: "Mostrando X–Y de Z" y "Página M de N".
+  - Selector de tamaño de página.
+  
+  PERSONALIZACIÓN:
+    ColumnDef puede incluir:
+    * header: string o JSX.
+    * accessorKey: clave del objeto fila.
+    * cell: función custom para renderizar (ej. formateo, links, botones).
+    * sortable: boolean (habilita sorting).
+
+================================================================================
+--- ARCHIVO: components/navbar.tsx (NAVEGACIÓN GLOBAL) ---
+
+Propósito: Barra de navegación mostrada en todas las páginas post-login.
+Enlaza a las secciones principales: usuarios, grupos, administradores.
+
+Secciones típicas:
+  - Logo / Branding.
+  - Links a /catalogos/usuarios, /catalogos/grupos, /catalogos/administradores.
+  - Botón de logout (limpia localStorage, setToken("")).
+
+================================================================================
+--- CÓMO CONFIGURAR VARIABLES DE ENTORNO (.env.local) ---
+
+Crea un archivo `.env.local` en la raíz (NO en Git):
+
+  # Login
+  EXTERNAL_LOGIN_URL="https://tu-api-externa.com/auth/login"
+  
+  # Grupos (lista de grupos disponibles)
+  EXTERNAL_GRUPOS_URL="https://tu-api-externa.com/grupos"
+  
+  # Alumnos (lista de alumnos por grupo)
+  EXTERNAL_ALUMNOS_URL="https://tu-api-externa.com/alumnos"
+  EXTERNAL_ALUMNOS_METHOD="POST"  # O "GET" si tu API lo prefiere
+  
+  # Autenticación general (si tu API externa no usa login por usuario)
+  EXTERNAL_API_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI..."
+  EXTERNAL_API_TOKEN_TYPE="Bearer"  # O "Basic", "Token", etc.
+
+Después de modificar .env.local, reinicia el servidor (Ctrl+C, pnpm dev).
+
+================================================================================
+--- FLUJO DE DATOS PASO A PASO (EJEMPLO COMPLETO) ---
+
+1. Usuario ingresa "admin" / "pass123" → hace click "Entrar".
+   
+2. LoginForm.onSubmit → app/page.tsx.handleLogin() ejecuta:
+   POST /api/login { Usuario: "admin", Pwd: "pass123" }
+   
+3. app/api/login/route.ts:
+   - Lee el body.
+   - Hace fetch a EXTERNAL_LOGIN_URL (en .env.local).
+   - Respuesta: { token: "abc123def456" }.
+   - Retorna al cliente: { token: "abc123def456" }.
+   
+4. Navegador recibe token:
+   - setToken("abc123def456")
+   - localStorage.setItem("auth_token", "abc123def456")
+   - isAuthenticated = true → re-render.
+   
+5. Página muestra post-login UI con Navbar.
+   Usuario navega a /catalogos/usuarios.
+   
+6. Página carga → useEffect envía: GET /api/grupos.
+   
+7. app/api/grupos/route.ts:
+   - buildAuthHeader busca Authorization: "Bearer abc123def456" en la request.
+   - Hace fetch a EXTERNAL_GRUPOS_URL con ese header.
+   - Respuesta externa: [{ GRUPO: "A", ID_GRUPO: 1 }, { GRUPO: "B", ID_GRUPO: 2 }].
+   - normalizeGroups(): convierte a [{ id: "1", label: "A", value: "A" }, ...].
+   - Retorna al cliente: ese array normalizado.
+   
+8. Navegador recibe grupos:
+   - GrupoSelector renderiza <select> con opciones A, B, etc.
+   
+9. Usuario selecciona "A" y hace click "Buscar".
+   
+10. GrupoSelector.onSearch → Tabla ejecuta:
+    POST /api/alumnos { grupo: "A" }
+    
+11. app/api/alumnos/route.ts:
+    - Extrae { grupo: "A" } del body.
+    - Construye Authorization header (token del usuario).
+    - Hace fetch a EXTERNAL_ALUMNOS_URL con { grupo: "A" } en el body.
+    - Respuesta: { rows: [{ id: 1, nombre: "Juan" }, { id: 2, nombre: "María" }] }.
+    - extractRows(): obtiene el array de filas.
+    - Retorna al cliente: ese array.
+    
+12. Navegador recibe alumnos:
+    - DataTablePriority renderiza tabla con 2 filas.
+    - Footer: "Mostrando 1–2 de 2", "Página 1 de 1".
+
+================================================================================
+--- CAMBIOS COMUNES: HOW-TO ---
+
+¿Cómo agregar una nueva columna a la tabla de alumnos?
+→ Busca en la página /catalogos/usuarios (u donde uses TablaAlumnos).
+→ En el array `columns`, agrega:
+    { header: "Teléfono", accessorKey: "telefono" }
+→ Asegúrate que la API externa incluya ese campo en el objeto fila.
+
+¿Cómo cambiar el método de /api/alumnos de POST a GET?
+→ En .env.local:
+    EXTERNAL_ALUMNOS_METHOD="GET"
+→ Reinicia el servidor.
+→ app/api/alumnos/route.ts automáticamente construirá una URL con query:
+    ?grupo=A en vez de JSON en el body.
+
+¿Cómo agregar más capos a la búsqueda del GrupoSelector?
+→ En GrupoSelector.tsx, la línea de filtro:
+    return value.includes(normalizedQuery) || label.includes(normalizedQuery);
+→ Agrega más condiciones:
+    || description.includes(normalizedQuery)
+
+¿Cómo cambiar el tamaño de página por defecto?
+→ En DataTablePriority.tsx, busca `const [pageSize, setPageSize] = ...`
+→ Cambia el valor inicial (ahora probablemente 10).
+
+¿Cómo agregar un botón de logout en la Navbar?
+→ En components/navbar.tsx, agrega:
+    <button onClick={() => {
+      localStorage.removeItem("auth_token");
+      setToken("");
+      window.location.href = "/";
+    }}>
+    Logout
+    </button>
 
 ================================================================================
 ARCHIVO: package.json
@@ -332,6 +775,153 @@ FLUJO RESUMIDO (quién llama a quién)
    vista simple puede ir sin paginación (`pagination={false}`).
 
 ================================================================================
+PERSISTENCIA DE TOKENS (localStorage)
+================================================================================
+
+Problema: Si el usuario recarga la página, pierde la sesión.
+Solución: `localStorage` guarda el token en el navegador de forma persistente.
+
+En app/page.tsx:
+  1. Al hacer login exitoso:
+     localStorage.setItem("auth_token", tokenStr)
+  
+  2. Al montar el componente (useEffect con [] dependencias vacías):
+     const savedToken = localStorage.getItem("auth_token");
+     if (savedToken) setToken(savedToken);
+  
+  3. Al hacer logout (botón en Navbar):
+     localStorage.removeItem("auth_token");
+     setToken("");
+
+Así el usuario permanece logueado incluso después de cerrar/reabrir el navegador,
+hasta que haga logout explícitamente.
+
+NOTA: localStorage es accesible desde JavaScript, por lo que tokens no deben
+incluir información sensible más allá del acceso a la sesión (ver sección
+"Consideraciones de Seguridad").
+
+================================================================================
+CONSIDERACIONES DE SEGURIDAD
+================================================================================
+
+1. NUNCA expongas URLs de APIs externas en el cliente (HTML/JavaScript).
+   → Usa Route Handlers (app/api/...) como proxy intermedio.
+   → Variables de entorno EXTERNAS solo en .env.local del servidor.
+
+2. Authorization headers SIEMPRE deben ir en Route Handlers (no en fetch del
+   navegador si contienen secretos).
+   → app/api/alumnos/route.ts construye el header con el token.
+   → El cliente no ve el token fijo de .env.local, solo el suyo propio.
+
+3. HTTPS en producción — localhost es OK para desarrollo, pero en Vercel/Netlify
+   u otro hosting, todas las requests deben ser HTTPS para proteger tokens.
+
+4. Tiempo de expiración del token:
+   → Si tu API devuelve expiry, valida en el cliente o servidor.
+   → Implementa refresh token flow si es necesario.
+   → De lo contrario, el usuario permanece logueado indefinidamente
+     (riesgo si deja el navegador abierto en una máquina compartida).
+
+5. CORS:
+   → Next.js por defecto acepta requests del mismo origin (localhost:3000).
+   → Si tu API externa está en otro dominio, asegúrate de CORS headers en ella.
+   → Si es en tu control, agrega Access-Control-Allow-Origin en el backend.
+
+6. Validación de entrada:
+   → Los Route Handlers validan que `grupo` no esté vacío (grupo.trim()).
+   → Siempre limpia y valida datos en el servidor antes de usarlos.
+
+================================================================================
+DEBUGGING: PROBLEMAS COMUNES
+================================================================================
+
+Problema: "Error al iniciar sesión"
+  → Verifica .env.local: ¿EXTERNAL_LOGIN_URL es válida?
+  → Reinicia el servidor: Ctrl+C → pnpm dev
+  → Abre DevTools (F12) → Network tab → busca "login" → revisa response.
+
+Problema: Dropdown de grupos vacío o muestra "Falta configurar EXTERNAL_GRUPOS_URL"
+  → Verifica .env.local: ¿EXTERNAL_GRUPOS_URL está definida?
+  → ¿El token se guardó correctamente? Revisa DevTools → Application → localStorage.
+  → ¿La API externa devuelve JSON válido? DevTools → Network → click en "grupos"
+    → Response tab.
+
+Problema: Tabla de alumnos no se carga
+  → Mismo proceso: revisa Network tab en DevTools → POST a /api/alumnos.
+  → ¿El payload { grupo: "..." } se envió?
+  → ¿La API externa devolvió error o status 500?
+
+Problema: Token se pierde al recargar la página
+  → Verifica que localStorage.getItem/setItem se llamen correctamente.
+  → Revisa DevTools → Application → localStorage → ¿auth_token está?
+  → Si no aparece, el saveToken en login no se ejecutó (error anterior).
+
+Problema: "Cannot read property 'data' of undefined"
+  → Un campo esperado en la respuesta de la API falta.
+  → Ejemplo: normalizeGroups busca `data.GRUPO` pero la API devuelve `data.nombre`.
+  → Abre DevTools, copia la respuesta y ajusta las claves en el código o en la API.
+
+Problema: Paginación no funciona (muestra todas las filas de una vez)
+  → Verifica que `pagination={true}` esté en `<TablaAlumnos ... />`.
+  → Revisa que `defaultPageSize` sea un número > 0.
+  → Si aún así falla, busca `slice(startIndex, endIndex)` en DataTablePriority;
+    asegúrate de que `currentPage` y `pageSize` se actualicen con clicks.
+
+================================================================================
+ESTRUCTURA DE DATOS ESPERADA
+================================================================================
+
+API de GRUPOS (respuesta esperada — cualquiera de estas formas se normaliza):
+
+Opción 1: Array puro
+  ["Grupo A", "Grupo B", "Grupo C"]
+
+Opción 2: Array de objetos
+  [
+    { GRUPO: "Grupo A", ID_GRUPO: 1 },
+    { GRUPO: "Grupo B", ID_GRUPO: 2 }
+  ]
+
+Opción 3: Objeto con envelope
+  {
+    data: [
+      { grupo: "Grupo A", id: 1 },
+      { grupo: "Grupo B", id: 2 }
+    ]
+  }
+
+→ normalizeGroups convierte TODAS a:
+  [
+    { id: "1", label: "Grupo A", value: "Grupo A" },
+    { id: "2", label: "Grupo B", value: "Grupo B" }
+  ]
+
+API de ALUMNOS (respuesta esperada):
+
+Opción 1: Array de objetos
+  [
+    { id_usuario: 1, NOMBRE: "Juan", APELLIDO: "Pérez", ... },
+    { id_usuario: 2, NOMBRE: "María", APELLIDO: "López", ... }
+  ]
+
+Opción 2: Objeto con envelope
+  {
+    rows: [
+      { id_usuario: 1, NOMBRE: "Juan", ... },
+      { id_usuario: 2, NOMBRE: "María", ... }
+    ]
+  }
+
+Opción 3: Con "data"
+  {
+    data: [ ... ]
+  }
+
+→ extractRows encuentra el array en cualquiera de estos casos.
+→ DataTablePriority renderiza cada objeto sin restricciones de forma; 
+  tu ColumnDef especifica qué campos mostrar.
+
+================================================================================
 NOTA SOBRE NÚMEROS DE LÍNEA
 ================================================================================
 Si editas un archivo arriba de una línea citada, las líneas siguientes se desplazan.
@@ -339,63 +929,126 @@ Vuelve a contar en tu editor (VS Code/Cursor muestra número de línea a la izqu
 o busca el fragmento de código mencionado en el párrafo.
 
 ================================================================================
-NOTAS RECIENTES
+MEJORES PRÁCTICAS
 ================================================================================
-• Modal de creación simplificado en `app/page.tsx`:
-  al hacer clic en el botón "Crear" de la tabla, se abre un modal que solo
-  muestra el texto "hola".
-• El modal incluye un botón "Cerrar" para ocultarlo.
-• Se retiró temporalmente la lógica de opciones "Radio/Polígono" para mantener
-  un flujo mínimo de prueba.
 
-El navbar los instalé con shadcn y luego lo metí en el layout
-Fin del tutorial.
+1. Tipos TypeScript:
+   • Define `type` o `interface` para cada respuesta de API.
+   • Esto evita errores en tiempo de compilación (no runtime).
 
+2. Manejo de errores:
+   • Siempre muestra error al usuario: `error && <p className="...">` + estado.
+   • En el servidor, valida y devuelve status HTTP correcto (400, 401, 500).
 
-Guardar el token en local storage en app/page.tsx
+3. Loading states:
+   • Desactiva botones durante carga: `disabled={loading}`.
+   • Muestra spinner o texto "Cargando...".
 
- React.useEffect(() => {
-    const savedToken = localStorage.getItem("auth_token");
-    if (savedToken) {
-      setToken(savedToken);
+4. Re-renders innecesarios:
+   • Usa `useMemo` para datos costosos (columnas, filas formateadas).
+   • Usa `useCallback` para funciones pasadas a componentes hijos.
+
+5. Eventos de teclado:
+   • Implementa Enter en inputs (ayuda UX): `onKeyDown={handleKeyPress}`.
+   • Flechas arriba/abajo en dropdowns: GrupoSelector lo hace automático.
+
+6. Móvil-first CSS:
+   • Usa clases Tailwind responsive: `md:`, `lg:` para breakpoints.
+   • Prueba en navegador (F12 → Device Toolbar) con ancho de móvil.
+
+7. Logging en desarrollo:
+   • Mantén console.log durante desarrollo; retíralos en producción.
+   • o usa condicionales: `if (isDev) console.log(...)`.
+
+8. Versionado de API:
+   • Si tu API externa cambia, versiona en URLs: `/v1/alumnos` → `/v2/alumnos`.
+   • Actualiza .env.local, no código hardcodeado.
+
+================================================================================
+RECURSOS ÚTILES
+================================================================================
+
+• Next.js Docs (oficial): https://nextjs.org/docs
+  → App Router, Route Handlers, Middleware.
+
+• React Docs (oficial): https://react.dev
+  → Hooks (useState, useEffect, useMemo, useCallback), Client Components.
+
+• TypeScript (oficial): https://www.typescriptlang.org/docs
+  → Tipos básicos, generics, discriminated unions.
+
+• Tailwind CSS: https://tailwindcss.com/docs
+  → Utilidades, responsive design, customización.
+
+• Radix UI: https://www.radix-ui.com/docs/primitives/overview/introduction
+  → Componentes sin estilos (accesibles, customizables).
+
+• shadcn/ui: https://ui.shadcn.com/docs/installation/next
+  → Componentes prediseñados con Radix + Tailwind (usados en Navbar).
+
+• DevTools del navegador (F12):
+  → Network: inspecciona requests/responses.
+  → Application → localStorage: revisa tokens guardados.
+  → Console: errores de JavaScript.
+
+================================================================================
+CASOS DE USO AVANZADOS
+================================================================================
+
+¿Cómo implementar logout?
+  → En Navbar, agregar botón con onClick:
+    () => { 
+      localStorage.removeItem("auth_token");
+      setToken("");
+      // opcional: window.location.href = "/";
     }
-  }, []);
 
+¿Cómo refrescar el token automáticamente?
+  → Agrega un useEffect que escuche cambios de token.
+  → Si token es caduca, haz refresh request a /api/refresh.
+  → Actualiza token en estado y localStorage.
 
-  
+¿Cómo exportar datos a Excel?
+  → El proyecto ya importa `xlsx` (en package.json).
+  → Ejemplo:
+    const workbook = XLSX.utils.book_new();
+    const sheet = XLSX.utils.json_to_sheet(rows);
+    XLSX.utils.book_append_sheet(workbook, sheet, "Alumnos");
+    XLSX.writeFile(workbook, "alumnos.xlsx");
 
-   const tokenValue =
-        data?.token ||
-        data?.Token ||
-        data?.access_token ||
-        data?.accessToken ||
-        data?.data?.token ||
-        "";
+¿Cómo agregar paginación en el servidor?
+  → POST /api/alumnos envía { grupo, page, pageSize }.
+  → Route Handler construye ?page=1&pageSize=10 en la URL externa.
+  → API devuelve { rows: [...], total: 100, page: 1 }.
+  → DataTablePriority usa `total` para calcular "Página N de M" correcto.
 
+¿Cómo integrar una API GraphQL?
+  → En Route Handler, en vez de fetch GET/POST JSON, usa fetch de query GraphQL.
+  → Construye `query { alumnos(grupo: ...) { id, nombre } }`.
+  → Parsea response y devuelve al cliente igual que hoy.
 
-          const tokenStr = String(tokenValue);
-      setToken(tokenStr);
-      localStorage.setItem("auth_token", tokenStr);
+================================================================================
+RESUMEN DE HERRAMIENTAS INSTALADAS
+================================================================================
 
+• next (16.1.6) — framework React + servidor.
+• react (19.2.3), react-dom (19.2.3) — UI.
+• tailwindcss (v4) — CSS utilities.
+• @tailwindcss/postcss (v4) — PostCSS plugin para Tailwind v4.
+• typescript (v5) — compilador TS.
+• eslint (v9), eslint-config-next — linter de código.
+• radix-ui (v1.4.3) — componentes accesibles sin estilos.
+• shadcn (v4.5.0) — CLI para instalar componentes Radix + Tailwind.
+• lucide-react (v1.11.0) — iconos SVG.
+• clsx (v2.1.1) — utilidad para clases CSS condicionales.
+• tailwind-merge (v3.5.0) — fusiona clases Tailwind sin conflictos.
+• class-variance-authority (v0.7.1) — tipado de variantes de componentes.
+• tw-animate-css (v1.4.0) — animaciones CSS para Tailwind.
+• xlsx (v0.18.5) — lectura/escritura de Excel.
 
-
-      Buscar en grupos
-      Al hacer clic en "Buscar", se dispara handleSearchClick:
-app/(dashboard)/catalogos/grupos/page.tsx/catalogos/grupos/page.tsx#L142) extrae selectedGroup.trim()
-
-Llama loadRows(grupo) con ese valor:
-app/(dashboard)/catalogos/grupos/page.tsx/catalogos/grupos/page.tsx#L143)
-
-loadRows hace POST a /api/tabla_grupos con el grupo en el body:
-app/(dashboard)/catalogos/grupos/page.tsx/catalogos/grupos/page.tsx#L121)
-{ "grupo": "el_valor_seleccionado" }
-
-El endpoint /api/tabla_grupos reenvía a tu API externa con ese mismo grupo:
-Tu .env.local tiene EXTERNAL_TABLA_GRUPOS_URL=http://37.27.133.117:8090/api/usuarios/tabla_grupos
-
-Entonces el flujo completo es:
-
-Frontend: selecciona grupo → Buscar
-POST /api/tabla_grupos { grupo }
-Route recibe grupo y lo reenvía a EXTERNAL_TABLA_GRUPOS_URL (por POST por defecto)
-Devuelve filas filtradas
+================================================================================
+FIN DEL TUTORIAL
+================================================================================
+Actualizado: 18 de mayo de 2026
+Este documento cubre la estructura, flujo de datos, configuración, y debugging
+del proyecto my-next-api (Next.js 16 + App Router + Proxy APIs externas).
