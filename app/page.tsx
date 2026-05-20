@@ -82,7 +82,7 @@ export default function Home() {
           /* PANTALLA DE BIENVENIDA (Post-Login) */
           <div className="w-full flex flex-col items-center pt-20 animate-in fade-in duration-1000">
             {/* Título Dorado */}
-            <h1 className="text-[#b59445] text-6xl md:text-8xl font-bold mb-12 uppercase tracking-tight">
+            <h1 className="text-[#FFC400] text-6xl md:text-8xl font-bold mb-12 uppercase tracking-tight">
               BIENVENIDO
             </h1>
 

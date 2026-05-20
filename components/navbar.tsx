@@ -30,26 +30,27 @@ export function Navbar() {
   };
 
   return (
-    <nav className="flex items-center justify-between bg-[#b59445] px-10 py-3 text-white font-sans">
+    <nav className="flex items-center justify-between bg-[#FFC400] px-10 py-2 font-sans">
       {/* LADO IZQUIERDO: Logo */}
-      <div className="shrink-0">
-        <Image
-          src="/logo_trackspere.png" // Asegúrate de que el nombre coincida
-          alt="Mistalentos Logo"
-          width={250}
-          height={60}
-          className="bg-white p-1" // El fondo blanco que se ve en tu imagen
-        />
-      </div>
+     <div className="flex items-center">
+    <Image
+      src="/n3-removebg-preview.png"
+      alt="TrackSphere logo"
+      width={220}
+      height={50}
+      className="h-12 w-auto object-contain"
+      priority
+    />
+  </div>
 
       {/* LADO DERECHO: Menú de navegación */}
       <div className="flex items-center gap-10 text-sm font-medium">
-        <Link href="/" className="hover:opacity-80 transition-opacity">
+        <Link href="/" className="hover:opacity-80 hover:font-bold transition-opacity">
           Inicio
         </Link>
 
         <DropdownMenu>
-          <DropdownMenuTrigger className="outline-none hover:opacity-80 transition-opacity cursor-pointer">
+          <DropdownMenuTrigger className="outline-none hover:opacity-80 hover:font-bold transition-opacity cursor-pointer">
             Catálogos
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -85,7 +86,7 @@ export function Navbar() {
 
         <button
           onClick={() => setOpenLogout(true)}
-          className="hover:opacity-80 transition-opacity"
+          className="hover:opacity-80 hover:font-bold transition-opacity"
         >
           Cerrar sesión
         </button>
