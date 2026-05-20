@@ -319,6 +319,15 @@ export function DataTablePriority<TData extends Record<string, unknown>>({
                 type="button"
                 className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-zinc-800 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={displayPage <= 1}
+                onClick={() => setCurrentPage(1)}
+                title="Ir a la primera página"
+              >
+                Primero
+              </button>
+              <button
+                type="button"
+                className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-zinc-800 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={displayPage <= 1}
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               >
                 Anterior
@@ -332,6 +341,15 @@ export function DataTablePriority<TData extends Record<string, unknown>>({
                 }
               >
                 Siguiente
+              </button>
+              <button
+                type="button"
+                className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-zinc-800 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={displayPage >= totalPages}
+                onClick={() => setCurrentPage(totalPages)}
+                title="Ir a la última página"
+              >
+                Último
               </button>
             </div>
           </div>
