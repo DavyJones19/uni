@@ -1047,8 +1047,46 @@ RESUMEN DE HERRAMIENTAS INSTALADAS
 • xlsx (v0.18.5) — lectura/escritura de Excel.
 
 ================================================================================
+ACTUALIZACIÓN: BOTONES DE PAGINACIÓN PRIMERO Y ÚLTIMO
+================================================================================
+
+Cambio realizado (19 de mayo de 2026):
+Se agregaron dos botones nuevos en la paginación de DataTablePriority.tsx:
+
+Antes:
+  • Anterior (página actual - 1)
+  • Siguiente (página actual + 1)
+
+Ahora:
+  • Primero (ir directamente a página 1)
+  • Anterior (página actual - 1)
+  • Siguiente (página actual + 1)
+  • Último (ir directamente a la última página)
+
+Implementación en app/(dashboard)/DataTablePriority.tsx (líneas aprox. 330-365):
+  • Botón "Primero": onClick={() => setCurrentPage(1)}
+    disabled={displayPage <= 1} → deshabilitado en la primera página
+    
+  • Botón "Último": onClick={() => setCurrentPage(totalPages)}
+    disabled={displayPage >= totalPages} → deshabilitado en la última página
+
+Beneficio UX:
+  → Usuarios con muchas páginas pueden navegar rápidamente a inicio/final.
+  → Misma línea de botones, mismos estilos (border, hover, disabled state).
+
+Código agregado (fragmento):
+  <button type="button" ... onClick={() => setCurrentPage(1)}>Primero</button>
+  <button type="button" ... onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}>Anterior</button>
+  <button type="button" ... onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}>Siguiente</button>
+  <button type="button" ... onClick={() => setCurrentPage(totalPages)}>Último</button>
+
+Los botones heredan las clases de estilos de los botones anteriores/siguiente y tienen
+el mismo comportamiento responsive (wrapping en móvil, row en escritorio).
+
+================================================================================
 FIN DEL TUTORIAL
 ================================================================================
-Actualizado: 18 de mayo de 2026
+Actualizado: 19 de mayo de 2026
 Este documento cubre la estructura, flujo de datos, configuración, y debugging
 del proyecto my-next-api (Next.js 16 + App Router + Proxy APIs externas).
+Incluye anotaciones sobre cambios en componentes de tabla (paginación).
