@@ -34,7 +34,7 @@ export function Navbar() {
       {/* LADO IZQUIERDO: Logo */}
       <div className="shrink-0">
         <Image
-          src="/logo_nuevo.jpeg" // Asegúrate de que el nombre coincida
+          src="/logo_trackspere.png" // Asegúrate de que el nombre coincida
           alt="Mistalentos Logo"
           width={250}
           height={60}
