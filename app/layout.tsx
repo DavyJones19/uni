@@ -4,7 +4,7 @@ import { Roboto } from "next/font/google"; // Importamos Roboto
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "MISTALENTOS",
+  title: "TRACKSPHERE",
   description: "Sistema de gestión de talento humano para MISTALENTOS",
 };
 const roboto = Roboto({

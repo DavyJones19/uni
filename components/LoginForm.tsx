@@ -36,7 +36,7 @@ export function LoginForm({
     }
   };
   return (
- <section className="w-full rounded-2xl bg-[#FFC400] px-10 py-8 shadow-sm">
+ <section className="w-full rounded-2xl bg-[#FFD200] px-10 py-8 shadow-sm">
 
   {/* Logo */}
  <div className="mb-2 flex justify-center">
