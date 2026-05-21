@@ -58,7 +58,7 @@ export default function Home() {
       setLoadingLogin(false);
     }
   };
-
+ 
   return (
     <>
       {isAuthenticated && <Navbar />}
