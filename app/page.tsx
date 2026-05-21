@@ -66,7 +66,7 @@ export default function Home() {
       <main
         className={`min-h-screen ${
           !isAuthenticated
-            ? "bg-[#FFD200] flex items-center justify-center"
+            ? "bg-[#FFD200] flex items-start justify-center pt-10 md:pt-16"
             : "bg-white"
         }`}
       >
@@ -98,20 +98,19 @@ export default function Home() {
               <Image
                 src="/logo_dhl-removebg.png"
                 alt="DHL logo"
-                width={120}
-                height={40}
-                style={{ objectFit: "contain", width: 120, height: 40 }}
+                width={150}
+                height={70}
+                style={{ objectFit: "contain", width: 150, height: 70 }}
                 priority
               />
             </div>
           </>
         ) : (
           /* PANTALLA DE BIENVENIDA (Post-Login) */
-          <div className="w-full flex flex-col items-center pt-20 animate-in fade-in duration-1000">
+          <div className="w-full flex flex-col items-center border-4  pt-20 animate-in fade-in duration-1000">
             {/* Título Dorado */}
             <h1 className="text-[#F50016] text-6xl md:text-8xl font-bold mb-12 uppercase tracking-tight">
-              WEB PLATORM
-CONCEPT MOCK UPS
+              WEB PLATORM CONCEPT MOCK UPS
             </h1>
 
             {/* Imagen del Rompecabezas */}
