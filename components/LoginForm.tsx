@@ -36,7 +36,7 @@ export function LoginForm({
     }
   };
   return (
- <section className="w-full rounded-2xl  border-none px-10 py-8 shadow-sm">
+ <section className="w-full rounded-2xl border-none px-10 py-8">
 
   {/* Logo */}
 <div className="relative mb-8 h-36 w-full overflow-hidden md:h-40">
