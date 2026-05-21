@@ -19,12 +19,21 @@ type RowData = Record<string, unknown>;
 
 // Componente de página por defecto en Next (App Router): se muestra en la ruta "/".
 export default function Home() {
-  const [token, setToken] = React.useState("");
+  const [token, setToken] = useState<string | null>(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [usuario, setUsuario] = React.useState("");
   const [pwd, setPwd] = React.useState("");
   const [loadingLogin, setLoadingLogin] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
+
+  useEffect(() => {
+  const savedToken = localStorage.getItem("auth_token");
+  if (savedToken) {
+    setToken(savedToken);
+  }
+  setCheckingAuth(false);
+}, []);
   const isAuthenticated = Boolean(token);
 
   const handleLogin = async () => {
@@ -58,7 +67,14 @@ export default function Home() {
       setLoadingLogin(false);
     }
   };
-
+if (checkingAuth) {
+  return (
+    <main className="min-h-screen flex items-center justify-center">
+      Cargando...
+    </main>
+  );
+}
+  
   return (
     <>
       {isAuthenticated && <Navbar />}
@@ -130,4 +146,5 @@ export default function Home() {
       </main>
     </>
   );
+
 }

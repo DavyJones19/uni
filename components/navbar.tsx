@@ -48,9 +48,10 @@ export function Navbar() {
             <DropdownMenuTrigger className="outline-none hover:opacity-80 hover:font-bold transition-opacity cursor-pointer">
               Seguimiento
             </DropdownMenuTrigger>
+         
             <DropdownMenuContent
               align="start"
-              className="w-56 bg-white p-2 shadow-lg rounded-sm border-none mt-2"
+              className=" hidden w-56 bg-white p-2 shadow-lg rounded-sm border-none mt-2"
             >
               <DropdownMenuItem
                 asChild
@@ -76,7 +77,9 @@ export function Navbar() {
                   USUARIOS
                 </Link>
               </DropdownMenuItem>
+       
             </DropdownMenuContent>
+              
           </DropdownMenu>
           <DropdownMenu>
             <DropdownMenuTrigger className="outline-none hover:opacity-80 hover:font-bold transition-opacity cursor-pointer">
@@ -96,9 +99,9 @@ export function Navbar() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger className="outline-none hover:opacity-80 hover:font-bold transition-opacity cursor-pointer">
+          <div className="hidden">
+          <DropdownMenu >
+            <DropdownMenuTrigger className="  outline-none hover:opacity-80 hover:font-bold transition-opacity cursor-pointer">
               Catálogos
             </DropdownMenuTrigger>
             <DropdownMenuContent
@@ -131,13 +134,14 @@ export function Navbar() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger className="outline-none hover:opacity-80 hover:font-bold transition-opacity cursor-pointer">
               Rutas
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="start"
-              className="w-56 bg-white p-2 shadow-lg rounded-sm border-none mt-2"
+              className="hidden w-56 bg-white p-2 shadow-lg rounded-sm border-none mt-2"
             >
               <DropdownMenuItem
                 asChild
@@ -171,7 +175,7 @@ export function Navbar() {
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="start"
-              className="w-56 bg-white p-2 shadow-lg rounded-sm border-none mt-2"
+              className="hidden w-56 bg-white p-2 shadow-lg rounded-sm border-none mt-2"
             >
               <DropdownMenuItem
                 asChild
