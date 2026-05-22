@@ -175,14 +175,14 @@ export function Navbar() {
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="start"
-              className="hidden w-56 bg-white p-2 shadow-lg rounded-sm border-none mt-2"
+              className="w-56 bg-white p-2 shadow-lg rounded-sm border-none mt-2"
             >
               <DropdownMenuItem
                 asChild
                 className="focus:bg-slate-100 cursor-pointer text-slate-700 font-medium uppercase text-xs tracking-wider p-2"
               >
                 <Link href="/catalogos/grupos" className="w-full">
-                  GRUPOS
+                  USUARIOS
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -190,7 +190,7 @@ export function Navbar() {
                 className="focus:bg-slate-100 cursor-pointer text-slate-700 font-medium uppercase text-xs tracking-wider p-2"
               >
                 <Link href="/catalogos/administradores" className="w-full">
-                  ADMINISTRADORES
+                  VEHICULOS
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -198,7 +198,15 @@ export function Navbar() {
                 className="focus:bg-slate-100 cursor-pointer text-slate-700 font-medium uppercase text-xs tracking-wider p-2"
               >
                 <Link href="/catalogos/usuarios" className="w-full">
-                  USUARIOS
+                  CONDUCTORES
+                </Link>
+              </DropdownMenuItem>
+                <DropdownMenuItem
+                asChild
+                className="focus:bg-slate-100 cursor-pointer text-slate-700 font-medium uppercase text-xs tracking-wider p-2"
+              >
+                <Link href="/gestionar/facilities" className="w-full">
+                  FACILITIES
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
