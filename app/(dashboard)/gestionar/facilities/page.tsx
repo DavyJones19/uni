@@ -258,64 +258,35 @@ function BotonEditar({ row, token, groups, onSuccess }: BotonEditarProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [valorCorreo, setValorCorreo] = useState(String(row.correo || ""));
-  const [valorUsuario, setValorUsuario] = useState(String(row.usuario || ""));
-  const [valorPassword, setValorPassword] = useState(
-    String(row.password || ""),
+  const [valorNOMBRE, setValorNOMBRE] = useState(String(row.NOMBRE || ""));
+  const [valorLATTITUDE, setValorLATTITUDE] = useState(
+    String(row.LATTITUDE || ""),
   );
-  const [valorNombre, setValorNombre] = useState(String(row.nombre || ""));
-  const [valorApellidoPaterno, setValorApellidoPaterno] = useState(
-    String(row.apellidoPaterno || ""),
+  const [valorLONGITUDE, setValorLONGITUDE] = useState(
+    String(row.LONGITUDE || ""),
   );
-  const [valorApellidoMaterno, setValorApellidoMaterno] = useState(
-    String(row.apellidoMaterno || ""),
-  );
-  const [valorGrupo, setValorGrupo] = useState(
-    String(row.nombreGrupo || row.grupo || ""),
-  );
-  const [valorGrupoId, setValorGrupoId] = useState(String(row.id_grupo ?? ""));
 
   // Actualizar valores cuando el row cambie (después de edición exitosa)
   useEffect(() => {
     if (open) return; // No actualizar mientras está abierto el modal
-    setValorCorreo(String(row.correo || ""));
-    setValorUsuario(String(row.usuario || ""));
-    setValorPassword(String(row.password || ""));
-    setValorNombre(String(row.nombre || ""));
-    setValorApellidoPaterno(String(row.apellidoPaterno || ""));
-    setValorApellidoMaterno(String(row.apellidoMaterno || ""));
-    setValorGrupo(String(row.nombreGrupo || row.grupo || ""));
-    setValorGrupoId(String(row.id_grupo ?? ""));
+    setValorNOMBRE(String(row.NOMBRE || ""));
+    setValorLATTITUDE(String(row.LATTITUDE || ""));
+    setValorLONGITUDE(String(row.LONGITUDE || ""));
   }, [row]);
 
   const handleUpdate = async () => {
-    if (!valorCorreo || !valorCorreo.includes("@")) {
-      setError("El correo electrónico es obligatorio y debe ser válido.");
+    if (!valorNOMBRE) {
+      setError("El nombre del punto es obligatorio.");
       return;
     }
 
-    if (!valorUsuario) {
-      setError("El nombre de usuario es obligatorio.");
+    if (!valorLATTITUDE || isNaN(Number(valorLATTITUDE))) {
+      setError("La latitud es obligatoria y debe ser un número válido.");
       return;
     }
 
-    if (!valorPassword) {
-      setError("La contraseña es obligatoria.");
-      return;
-    }
-
-    if (!valorNombre) {
-      setError("El nombre es obligatorio.");
-      return;
-    }
-
-    if (!valorApellidoPaterno) {
-      setError("El apellido paterno es obligatorio.");
-      return;
-    }
-
-    if (!valorGrupoId) {
-      setError("Selecciona un grupo de la lista.");
+    if (!valorLONGITUDE || isNaN(Number(valorLONGITUDE))) {
+      setError("La longitud es obligatoria y debe ser un número válido.");
       return;
     }
 
@@ -325,14 +296,10 @@ function BotonEditar({ row, token, groups, onSuccess }: BotonEditarProps) {
 
       let datos = {
         tl: "cat_puntos",
-        
-                id: row.id,
-      
-          id_perfil: 2,
-       
-        nombre: valorNombre,
-        apellido_Paterno: valorApellidoPaterno,
-        apellido_Materno: valorApellidoMaterno,
+        lattitude: Number(valorLATTITUDE),
+        id: row.id,
+        name: valorNOMBRE,
+        longitud: Number(valorLONGITUDE),
       };
 
       const response = await fetch("/api/editar", {
@@ -382,9 +349,7 @@ function BotonEditar({ row, token, groups, onSuccess }: BotonEditarProps) {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle className="text-base">
-              Editar Punto
-            </DialogTitle>
+            <DialogTitle className="text-base">Editar Punto</DialogTitle>
           </DialogHeader>
           <div className="gap-3 py-2">
             <div className="flex flex-col gap-2">
@@ -395,56 +360,9 @@ function BotonEditar({ row, token, groups, onSuccess }: BotonEditarProps) {
               </div>
 
               <div>
-                <GrupoComboboxField
-                  groups={groups}
-                  value={valorGrupo}
-                  onChange={(text) => {
-                    setValorGrupo(text);
-                    setValorGrupoId("");
-                  }}
-                  onSelect={(option) => {
-                    setValorGrupo(option.label);
-                    setValorGrupoId(option.id);
-                  }}
-                  disabled={loading}
-                />
-              </div>
-
-              <div>
                 <Input
-                  value={valorCorreo}
-                  onChange={(e) => setValorCorreo(e.target.value)}
-                  placeholder="Correo"
-                  disabled={loading}
-                  className="text-xs h-8"
-                />
-              </div>
-
-              <div>
-                <Input
-                  value={valorUsuario}
-                  onChange={(e) => setValorUsuario(e.target.value)}
-                  placeholder="Usuario"
-                  disabled={loading}
-                  className="text-xs h-8"
-                />
-              </div>
-
-              <div>
-                <Input
-                  type="password"
-                  value={valorPassword}
-                  onChange={(e) => setValorPassword(e.target.value)}
-                  placeholder="Contraseña"
-                  disabled={loading}
-                  className="text-xs h-8"
-                />
-              </div>
-
-              <div>
-                <Input
-                  value={valorNombre}
-                  onChange={(e) => setValorNombre(e.target.value)}
+                  value={valorNOMBRE}
+                  onChange={(e) => setValorNOMBRE(e.target.value)}
                   placeholder="Nombre"
                   disabled={loading}
                   className="text-xs h-8"
@@ -453,9 +371,9 @@ function BotonEditar({ row, token, groups, onSuccess }: BotonEditarProps) {
 
               <div>
                 <Input
-                  value={valorApellidoPaterno}
-                  onChange={(e) => setValorApellidoPaterno(e.target.value)}
-                  placeholder="Apellido Paterno"
+                  value={valorLATTITUDE}
+                  onChange={(e) => setValorLATTITUDE(e.target.value)}
+                  placeholder="Latitud"
                   disabled={loading}
                   className="text-xs h-8"
                 />
@@ -463,9 +381,9 @@ function BotonEditar({ row, token, groups, onSuccess }: BotonEditarProps) {
 
               <div>
                 <Input
-                  value={valorApellidoMaterno}
-                  onChange={(e) => setValorApellidoMaterno(e.target.value)}
-                  placeholder="Apellido Materno"
+                  value={valorLONGITUDE}
+                  onChange={(e) => setValorLONGITUDE(e.target.value)}
+                  placeholder="Longitud"
                   disabled={loading}
                   className="text-xs h-8"
                 />
@@ -488,8 +406,8 @@ function BotonEditar({ row, token, groups, onSuccess }: BotonEditarProps) {
               Cancelar
             </Button>
             <Button
+              type="button"
               onClick={handleUpdate}
-              disabled={loading}
               className="h-8 px-3 text-xs bg-sky-600 hover:bg-sky-500"
             >
               {loading ? "Guardando..." : "Confirmar"}
@@ -556,8 +474,8 @@ function BotonInserta({
       setError(null);
 
       let datos = {
-        tl: "cat_user",
-        indicador_id_user_prov_ase: 0,
+        tl: "cat_puntos",
+
         id_grupo: Number(valorGrupoId),
         id_perfil: 2,
         correo: valorCorreo,
@@ -628,9 +546,7 @@ function BotonInserta({
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle className="text-base">
-              Agregar Punto
-            </DialogTitle>
+            <DialogTitle className="text-base">Agregar Punto</DialogTitle>
           </DialogHeader>
           <div className="gap-3 py-2">
             <div className="flex flex-col gap-2">
@@ -763,7 +679,7 @@ function BotonEliminar({ row, token, onSuccess }: BotonEliminarProps) {
 
       let datos = {
         tl: "cat_puntos",
-        indicador_id_user_prov_ase: 0,
+
         id: row.id,
       };
 
@@ -814,9 +730,7 @@ function BotonEliminar({ row, token, onSuccess }: BotonEliminarProps) {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-[300px]">
           <DialogHeader>
-            <DialogTitle className="text-base">
-              Eliminar facility
-            </DialogTitle>
+            <DialogTitle className="text-base">Eliminar facility</DialogTitle>
           </DialogHeader>
           <div className="py-2">
             <p className="text-sm text-muted-foreground">
@@ -950,13 +864,12 @@ export default function PuntosPage() {
     () => [
       { id: "NOMBRE", header: "Punto", priority: 1 },
       { id: "LATTITUDE", header: "Latitud", priority: 2 },
-      { id: "LONGITUDE", header: "longitud", priority: 3 },
-     
-      
+      { id: "LONGITUDE", header: "Longitud", priority: 3 },
+      { id: "TIPO", header: "Tipo", priority: 4 },
       {
         id: "Acciones",
         header: "Acciones",
-        priority: 4,
+        priority: 5,
         render: (row: RowData) => (
           <div className="flex gap-1 -mx-2">
             <BotonEditar
