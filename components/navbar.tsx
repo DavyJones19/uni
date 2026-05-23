@@ -40,15 +40,18 @@ export function Navbar() {
           priority
         />
         <div className="flex items-center gap-8 text-sm font-medium">
-          <Link href="/" className="hover:opacity-80 hover:font-bold transition-opacity">
+          <Link
+            href="/"
+            className="hover:opacity-80 hover:font-bold transition-opacity"
+          >
             Inicio
           </Link>
           {/* Puedes agregar más opciones aquí según tu menú real */}
-           <DropdownMenu>
+          <DropdownMenu>
             <DropdownMenuTrigger className="outline-none hover:opacity-80 hover:font-bold transition-opacity cursor-pointer">
               Seguimiento
             </DropdownMenuTrigger>
-         
+
             <DropdownMenuContent
               align="start"
               className=" hidden w-56 bg-white p-2 shadow-lg rounded-sm border-none mt-2"
@@ -77,9 +80,7 @@ export function Navbar() {
                   USUARIOS
                 </Link>
               </DropdownMenuItem>
-       
             </DropdownMenuContent>
-              
           </DropdownMenu>
           <DropdownMenu>
             <DropdownMenuTrigger className="outline-none hover:opacity-80 hover:font-bold transition-opacity cursor-pointer">
@@ -100,40 +101,40 @@ export function Navbar() {
             </DropdownMenuContent>
           </DropdownMenu>
           <div className="hidden">
-          <DropdownMenu >
-            <DropdownMenuTrigger className="  outline-none hover:opacity-80 hover:font-bold transition-opacity cursor-pointer">
-              Catálogos
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="start"
-              className="w-56 bg-white p-2 shadow-lg rounded-sm border-none mt-2"
-            >
-              <DropdownMenuItem
-                asChild
-                className="focus:bg-slate-100 cursor-pointer text-slate-700 font-medium uppercase text-xs tracking-wider p-2"
+            <DropdownMenu>
+              <DropdownMenuTrigger className="  outline-none hover:opacity-80 hover:font-bold transition-opacity cursor-pointer">
+                Catálogos
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="start"
+                className="w-56 bg-white p-2 shadow-lg rounded-sm border-none mt-2"
               >
-                <Link href="/catalogos/grupos" className="w-full">
-                  GRUPOS
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                asChild
-                className="focus:bg-slate-100 cursor-pointer text-slate-700 font-medium uppercase text-xs tracking-wider p-2"
-              >
-                <Link href="/catalogos/administradores" className="w-full">
-                  ADMINISTRADORES
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                asChild
-                className="focus:bg-slate-100 cursor-pointer text-slate-700 font-medium uppercase text-xs tracking-wider p-2"
-              >
-                <Link href="/catalogos/usuarios" className="w-full">
-                  USUARIOS
-                </Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <DropdownMenuItem
+                  asChild
+                  className="focus:bg-slate-100 cursor-pointer text-slate-700 font-medium uppercase text-xs tracking-wider p-2"
+                >
+                  <Link href="/catalogos/grupos" className="w-full">
+                    GRUPOS
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  asChild
+                  className="focus:bg-slate-100 cursor-pointer text-slate-700 font-medium uppercase text-xs tracking-wider p-2"
+                >
+                  <Link href="/catalogos/administradores" className="w-full">
+                    ADMINISTRADORES
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  asChild
+                  className="focus:bg-slate-100 cursor-pointer text-slate-700 font-medium uppercase text-xs tracking-wider p-2"
+                >
+                  <Link href="" className="w-full">
+                    USUARIOS
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger className="outline-none hover:opacity-80 hover:font-bold transition-opacity cursor-pointer">
@@ -181,7 +182,7 @@ export function Navbar() {
                 asChild
                 className="focus:bg-slate-100 cursor-pointer text-slate-700 font-medium uppercase text-xs tracking-wider p-2"
               >
-                <Link href="/catalogos/grupos" className="w-full">
+                <Link href="" className="w-full">
                   USUARIOS
                 </Link>
               </DropdownMenuItem>
@@ -189,7 +190,7 @@ export function Navbar() {
                 asChild
                 className="focus:bg-slate-100 cursor-pointer text-slate-700 font-medium uppercase text-xs tracking-wider p-2"
               >
-                <Link href="/catalogos/administradores" className="w-full">
+                <Link href="" className="w-full">
                   VEHICULOS
                 </Link>
               </DropdownMenuItem>
@@ -197,11 +198,11 @@ export function Navbar() {
                 asChild
                 className="focus:bg-slate-100 cursor-pointer text-slate-700 font-medium uppercase text-xs tracking-wider p-2"
               >
-                <Link href="/catalogos/usuarios" className="w-full">
+                <Link href="" className="w-full">
                   CONDUCTORES
                 </Link>
               </DropdownMenuItem>
-                <DropdownMenuItem
+              <DropdownMenuItem
                 asChild
                 className="focus:bg-slate-100 cursor-pointer text-slate-700 font-medium uppercase text-xs tracking-wider p-2"
               >
@@ -210,8 +211,7 @@ export function Navbar() {
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
-          </DropdownMenu>   
-
+          </DropdownMenu>
         </div>
       </div>
       {/* Espaciador flexible para empujar el botón de cerrar sesión a la derecha */}
@@ -237,7 +237,7 @@ export function Navbar() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-   </div>
+      </div>
     </nav>
   );
 }
