@@ -7,7 +7,12 @@ import { buttonVariants } from "@/components/ui/button";
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>;
 
-export function Calendar({ className, classNames, showOutsideDays = true, ...props }: CalendarProps) {
+export function Calendar({
+  className,
+  classNames,
+  showOutsideDays = true,
+  ...props
+}: CalendarProps) {
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
@@ -30,7 +35,8 @@ export function Calendar({ className, classNames, showOutsideDays = true, ...pro
         chevron: "h-4 w-4",
         month_grid: "w-full border-collapse space-y-1",
         weekdays: "flex",
-        weekday: "w-9 rounded-md text-center text-[0.8rem] font-medium text-zinc-500",
+        weekday:
+          "w-9 rounded-md text-center text-[0.8rem] font-medium text-zinc-500",
         week: "mt-2 flex w-full",
         day: cn(
           "relative h-9 w-9 p-0 text-center text-sm focus-within:relative focus-within:z-20",
@@ -51,11 +57,21 @@ export function Calendar({ className, classNames, showOutsideDays = true, ...pro
         ...classNames,
       }}
       components={{
-        Chevron: ({ orientation, className: chevronClassName, ...chevronProps }) =>
+        Chevron: ({
+          orientation,
+          className: chevronClassName,
+          ...chevronProps
+        }) =>
           orientation === "right" ? (
-            <ChevronRight className={cn("h-4 w-4", chevronClassName)} {...chevronProps} />
+            <ChevronRight
+              className={cn("h-4 w-4", chevronClassName)}
+              {...chevronProps}
+            />
           ) : (
-            <ChevronLeft className={cn("h-4 w-4", chevronClassName)} {...chevronProps} />
+            <ChevronLeft
+              className={cn("h-4 w-4", chevronClassName)}
+              {...chevronProps}
+            />
           ),
       }}
       {...props}

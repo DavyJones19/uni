@@ -3,7 +3,13 @@
 import * as React from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { CalendarDays, ChevronLeft, ChevronRight, Search, RotateCcw } from "lucide-react";
+import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Search,
+  RotateCcw,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -217,7 +223,9 @@ export default function MovimientosPage() {
                     <td className="px-1 py-0">
                       <div
                         className={`h-8 w-8 rounded-full ${
-                          row.stateDot === "green" ? "bg-[#008a3d]" : "bg-zinc-300"
+                          row.stateDot === "green"
+                            ? "bg-[#008a3d]"
+                            : "bg-zinc-300"
                         }`}
                       />
                     </td>
@@ -233,7 +241,10 @@ export default function MovimientosPage() {
                       row.enrampe,
                       row.updates,
                     ].map((value, cellIndex) => (
-                      <td key={`${row.mvnt}-${cellIndex}`} className="py-0 align-middle">
+                      <td
+                        key={`${row.mvnt}-${cellIndex}`}
+                        className="py-0 align-middle"
+                      >
                         <div className="min-h-[34px] rounded-sm border border-zinc-300 bg-white px-4 py-1 text-center text-[15px] text-zinc-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                           {value}
                         </div>
@@ -246,11 +257,17 @@ export default function MovimientosPage() {
           </div>
 
           <div className="flex items-center justify-end gap-2 px-2 py-3 text-zinc-600">
-            <button type="button" className="flex h-8 w-8 items-center justify-center">
+            <button
+              type="button"
+              className="flex h-8 w-8 items-center justify-center"
+            >
               <ChevronLeft className="h-5 w-5" />
             </button>
             <span className="text-sm font-semibold text-zinc-700">1</span>
-            <button type="button" className="flex h-8 w-8 items-center justify-center">
+            <button
+              type="button"
+              className="flex h-8 w-8 items-center justify-center"
+            >
               <ChevronRight className="h-5 w-5" />
             </button>
           </div>
