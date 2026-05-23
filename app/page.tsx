@@ -3,17 +3,18 @@
 // Sin "use client" no podrías usar useState, useEffect ni eventos de usuario aquí.
 
 import * as React from "react";
-import { useState, useEffect } from 'react';
-import Image from 'next/image';
-import { GrupoSelector, type GrupoOption } from "@/app/(dashboard)/GrupoSelector";
+import { useState, useEffect } from "react";
+import Image from "next/image";
+import {
+  GrupoSelector,
+  type GrupoOption,
+} from "@/app/(dashboard)/GrupoSelector";
 import { TablaAlumnos } from "@/app/(dashboard)/TablaAlumnos";
 import { LoginForm } from "@/components/LoginForm";
 import { Navbar } from "@/components/navbar";
 
 // Record<string, unknown> = objeto con claves string y valores de cualquier tipo (desconocido).
 type RowData = Record<string, unknown>;
-
-
 
 // Normaliza lo que venga del fetch de grupos (strings, números u objetos) al tipo GrupoOption.
 
@@ -26,14 +27,13 @@ export default function Home() {
   const [loadingLogin, setLoadingLogin] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-
   useEffect(() => {
-  const savedToken = localStorage.getItem("auth_token");
-  if (savedToken) {
-    setToken(savedToken);
-  }
-  setCheckingAuth(false);
-}, []);
+    const savedToken = localStorage.getItem("auth_token");
+    if (savedToken) {
+      setToken(savedToken);
+    }
+    setCheckingAuth(false);
+  }, []);
   const isAuthenticated = Boolean(token);
 
   const handleLogin = async () => {
@@ -46,8 +46,9 @@ export default function Home() {
         body: JSON.stringify({ Usuario: usuario, Pwd: pwd }),
       });
       const data = await response.json().catch(() => ({}));
-      
-      if (!response.ok) throw new Error(data?.error || "Error al iniciar sesión");
+
+      if (!response.ok)
+        throw new Error(data?.error || "Error al iniciar sesión");
 
       const tokenValue =
         data?.token ||
@@ -67,18 +68,18 @@ export default function Home() {
       setLoadingLogin(false);
     }
   };
-if (checkingAuth) {
-  return (
-    <main className="min-h-screen flex items-center justify-center">
-      Cargando...
-    </main>
-  );
-}
-  
+  if (checkingAuth) {
+    return (
+      <main className="min-h-screen flex items-center justify-center">
+        Cargando...
+      </main>
+    );
+  }
+
   return (
     <>
       {isAuthenticated && <Navbar />}
-      
+
       <main
         className={`min-h-screen ${
           !isAuthenticated
@@ -86,7 +87,6 @@ if (checkingAuth) {
             : "bg-white"
         }`}
       >
-        
         {!isAuthenticated ? (
           /* PANTALLA DE LOGIN */
           <>
@@ -125,26 +125,23 @@ if (checkingAuth) {
           /* PANTALLA DE BIENVENIDA (Post-Login) */
           <div className="w-full flex flex-col items-center border-4  pt-20 animate-in fade-in duration-1000">
             {/* Título Dorado */}
-            <h1 className="text-[#F50016] text-6xl md:text-8xl font-bold mb-12 uppercase tracking-tight">
+            <h1 className="text-[#F50016] text-center text-6xl md:text-8xl font-bold mb-12 uppercase tracking-tight">
               WEB PLATORM CONCEPT MOCK UPS
             </h1>
 
             {/* Imagen del Rompecabezas */}
-           <div className="relative w-full max-w-xl aspect-square">
-  <Image
-    src="/logo_tracksphere_gris.png"
-    alt="Bienvenida Tracksphere"
-    fill
-    className="object-contain"
-    priority
-  />
-</div>
-            
-           
+            <div className="relative w-full max-w-xl aspect-square">
+              <Image
+                src="/logo_tracksphere_gris.png"
+                alt="Bienvenida Tracksphere"
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
           </div>
         )}
       </main>
     </>
   );
-
 }
