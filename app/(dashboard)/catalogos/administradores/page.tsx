@@ -14,21 +14,13 @@ import {
   GrupoSelector,
   type GrupoOption,
 } from "@/app/(dashboard)/GrupoSelector";
+import { SearchCombobox } from "@/components/ui/search-combobox";
 import { TablaAlumnos } from "@/app/(dashboard)/TablaAlumnos";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import * as XLSX from "xlsx";
 
 type RowData = Record<string, any>;
-
-type GrupoComboboxProps = {
-  groups: GrupoOption[];
-  value: string;
-  onChange: (value: string) => void;
-  onSelect?: (option: GrupoOption) => void;
-  disabled?: boolean;
-  placeholder?: string;
-};
 
 const extractInsertedId = (payload: any): string | number | null => {
   if (payload === null || payload === undefined) return null;
@@ -65,166 +57,6 @@ const extractInsertedId = (payload: any): string | number | null => {
 
   return null;
 };
-
-function GrupoComboboxField({
-  groups,
-  value,
-  onChange,
-  onSelect,
-  disabled,
-  placeholder = "Escribe o selecciona un grupo",
-}: GrupoComboboxProps) {
-  const containerRef = React.useRef<HTMLDivElement>(null);
-  const [isOpen, setIsOpen] = React.useState(false);
-  const [highlightedIndex, setHighlightedIndex] = React.useState(-1);
-
-  const uniqueGroups = useMemo(() => {
-    const seen = new Set<string>();
-    return groups.filter((group) => {
-      if (seen.has(group.value)) return false;
-      seen.add(group.value);
-      return true;
-    });
-  }, [groups]);
-
-  const normalizedQuery = value.trim().toLowerCase();
-  const filteredGroups = useMemo(() => {
-    if (!normalizedQuery) return uniqueGroups;
-    return uniqueGroups.filter((group) => {
-      const groupValue = group.value.toLowerCase();
-      const groupLabel = group.label.toLowerCase();
-      return (
-        groupValue.includes(normalizedQuery) ||
-        groupLabel.includes(normalizedQuery)
-      );
-    });
-  }, [uniqueGroups, normalizedQuery]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const onDocumentMouseDown = (event: MouseEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) {
-        setIsOpen(false);
-        setHighlightedIndex(-1);
-      }
-    };
-
-    document.addEventListener("mousedown", onDocumentMouseDown);
-    return () => {
-      document.removeEventListener("mousedown", onDocumentMouseDown);
-    };
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (filteredGroups.length === 0) {
-      setHighlightedIndex(-1);
-      return;
-    }
-    if (highlightedIndex >= filteredGroups.length) {
-      setHighlightedIndex(filteredGroups.length - 1);
-    }
-  }, [filteredGroups, highlightedIndex]);
-
-  const selectGroup = useCallback(
-    (option: GrupoOption) => {
-      if (onSelect) {
-        // Cuando hay onSelect, el padre maneja tanto el texto como el id.
-        onSelect(option);
-      } else {
-        onChange(option.label);
-      }
-      setIsOpen(false);
-      setHighlightedIndex(-1);
-    },
-    [onChange, onSelect],
-  );
-
-  return (
-    <div className="relative w-full" ref={containerRef}>
-      <input
-        role="combobox"
-        aria-expanded={isOpen}
-        aria-controls="admin-grupo-combobox-list"
-        aria-autocomplete="list"
-        className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
-        placeholder={placeholder}
-        value={value}
-        disabled={disabled}
-        onFocus={() => setIsOpen(true)}
-        onChange={(event) => {
-          onChange(event.target.value);
-          setIsOpen(true);
-          setHighlightedIndex(0);
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "ArrowDown") {
-            event.preventDefault();
-            setIsOpen(true);
-            setHighlightedIndex((prev) =>
-              Math.min(prev + 1, filteredGroups.length - 1),
-            );
-            return;
-          }
-          if (event.key === "ArrowUp") {
-            event.preventDefault();
-            setHighlightedIndex((prev) => Math.max(prev - 1, 0));
-            return;
-          }
-          if (event.key === "Enter") {
-            if (!isOpen) return;
-            event.preventDefault();
-            if (highlightedIndex >= 0 && filteredGroups[highlightedIndex]) {
-              selectGroup(filteredGroups[highlightedIndex]);
-            } else {
-              setIsOpen(false);
-            }
-            return;
-          }
-          if (event.key === "Escape") {
-            setIsOpen(false);
-            setHighlightedIndex(-1);
-          }
-        }}
-      />
-
-      {isOpen && !disabled && (
-        <div
-          id="admin-grupo-combobox-list"
-          role="listbox"
-          className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-zinc-200 bg-white py-1 shadow-lg"
-        >
-          {filteredGroups.length === 0 ? (
-            <p className="px-3 py-2 text-xs text-zinc-500">
-              No hay coincidencias.
-            </p>
-          ) : (
-            filteredGroups.map((group, index) => (
-              <button
-                key={`${group.value}-${index}`}
-                type="button"
-                role="option"
-                aria-selected={index === highlightedIndex}
-                className={`block w-full px-3 py-2 text-left text-xs ${
-                  index === highlightedIndex
-                    ? "bg-zinc-900 text-white"
-                    : "text-zinc-800 hover:bg-zinc-100"
-                }`}
-                onMouseDown={(event) => event.preventDefault()}
-                onMouseEnter={() => setHighlightedIndex(index)}
-                onClick={() => selectGroup(group)}
-              >
-                <span className="font-medium">{group.label}</span>
-                {group.label !== group.value && (
-                  <span className="ml-2 opacity-70">({group.value})</span>
-                )}
-              </button>
-            ))
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
 
 type ColumnDef<T> = {
   id: string;
@@ -397,10 +229,11 @@ function BotonEditar({ row, token, groups, onSuccess }: BotonEditarProps) {
               </div>
 
               <div>
-                <GrupoComboboxField
-                  groups={groups}
+                <SearchCombobox
+                  label="Grupo"
                   value={valorGrupo}
-                  onChange={(text) => {
+                  options={groups}
+                  onValueChange={(text) => {
                     setValorGrupo(text);
                     setValorGrupoId("");
                   }}
@@ -408,7 +241,10 @@ function BotonEditar({ row, token, groups, onSuccess }: BotonEditarProps) {
                     setValorGrupo(option.label);
                     setValorGrupoId(option.id);
                   }}
+                  placeholder="Escribe o selecciona un grupo"
                   disabled={loading}
+                  inputClassName="h-8 text-xs"
+                  loading={loading}
                 />
               </div>
 
@@ -637,10 +473,11 @@ function BotonInserta({
           <div className="gap-3 py-2">
             <div className="flex flex-col gap-2">
               <div>
-                <GrupoComboboxField
-                  groups={groups}
+                <SearchCombobox
+                  label="Grupo"
                   value={valorGrupo}
-                  onChange={(text) => {
+                  options={groups}
+                  onValueChange={(text) => {
                     setValorGrupo(text);
                     setValorGrupoId("");
                   }}
@@ -648,7 +485,10 @@ function BotonInserta({
                     setValorGrupo(option.label);
                     setValorGrupoId(option.id);
                   }}
+                  placeholder="Escribe o selecciona un grupo"
                   disabled={loading}
+                  inputClassName="h-8 text-xs"
+                  loading={loading}
                 />
               </div>
 
