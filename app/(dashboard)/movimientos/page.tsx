@@ -111,7 +111,7 @@ export default function MovimientosPage() {
                         setFecha(day);
                         setCalendarOpen(false);
                       }}
-                      initialFocus
+                      autoFocus
                     />
                   </div>
                 )}

@@ -43,10 +43,7 @@ function dedupeByValue<TOption extends ComboboxOption>(options: TOption[]) {
   });
 }
 
-export const SearchCombobox = React.forwardRef<
-  HTMLInputElement,
-  SearchComboboxProps
->(function SearchCombobox(
+function SearchComboboxInner<TOption extends ComboboxOption>(
   {
     id,
     label,
@@ -69,8 +66,8 @@ export const SearchCombobox = React.forwardRef<
     labelClassName,
     listClassName,
     messageClassName,
-  },
-  ref,
+  }: SearchComboboxProps<TOption>,
+  ref: React.ForwardedRef<HTMLInputElement>,
 ) {
   const fallbackId = React.useId();
   const inputId = id ?? `search-combobox-${fallbackId}`;
@@ -331,6 +328,20 @@ export const SearchCombobox = React.forwardRef<
       ) : null}
     </div>
   );
-});
+}
 
-SearchCombobox.displayName = "SearchCombobox";
+export const SearchCombobox = React.forwardRef(SearchComboboxInner) as <
+  TOption extends ComboboxOption = ComboboxOption,
+>(
+  props: SearchComboboxProps<TOption> & React.RefAttributes<HTMLInputElement>,
+) => React.ReactElement | null;
+
+interface SearchComboboxComponent extends React.ForwardRefExoticComponent<
+  SearchComboboxProps<ComboboxOption> & React.RefAttributes<HTMLInputElement>
+> {
+  displayName?: string;
+}
+
+const SearchComboboxWithDisplayName = SearchCombobox as SearchComboboxComponent;
+
+SearchComboboxWithDisplayName.displayName = "SearchCombobox";
