@@ -10,10 +10,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  GrupoSelector,
-  type GrupoOption,
-} from "@/app/(dashboard)/GrupoSelector";
 import { FacilityFormModal } from "./FacilityFormModal";
 import { TablaAlumnos } from "@/app/(dashboard)/TablaAlumnos";
 import { type ComboboxOption } from "@/components/ui/search-combobox";
@@ -270,18 +266,9 @@ export default function PuntosPage() {
   // 1. Estados para los datos (Extraídos de tu app/page.tsx)
   const [token, setToken] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
-  const [groups, setGroups] = useState<GrupoOption[]>([]);
-  const [selectedGroup, setSelectedGroup] = useState("");
   const [rows, setRows] = useState<RowData[]>([]);
-  const [loadingGroups, setLoadingGroups] = useState(false);
   const [loadingRows, setLoadingRows] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const handleLimpiarFiltros = () => {
-    setError(null);
-    setSelectedGroup("");
-    void loadRows();
-  };
 
   // 2. Recuperar el token (Si lo guardaste en localStorage o similar al loguear)
   useEffect(() => {
@@ -290,75 +277,48 @@ export default function PuntosPage() {
     if (savedToken) setToken(savedToken);
   }, []);
 
-  // 3. Lógica de carga de grupos
-  useEffect(() => {
+  // 4. Carga de filas (Puntos)
+  const loadRows = useCallback(async () => {
     if (!token) return;
-    const loadGroups = async () => {
-      try {
-        setLoadingGroups(true);
-        const response = await fetch("/api/grupos", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!response.ok) throw new Error("Failed to load grupos");
-        const data = await response.json();
-        setGroups(Array.isArray(data?.data) ? data.data : []);
-      } catch (err) {
-        setError("Error al cargar grupos");
-      } finally {
-        setLoadingGroups(false);
+    try {
+      setLoadingRows(true);
+      setError(null);
+      const response = await fetch("/api/puntos", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({}),
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        const apiMsg =
+          typeof data?.error === "string"
+            ? data.error
+            : "Error al cargar puntos";
+        throw new Error(apiMsg);
       }
-    };
-    loadGroups();
+
+      const nextRows = Array.isArray(data?.data)
+        ? data.data
+        : Array.isArray(data?.rows)
+          ? data.rows
+          : [];
+
+      setRows(nextRows);
+    } catch (err: any) {
+      setRows([]);
+      setError(err?.message || "Error al cargar puntos");
+    } finally {
+      setLoadingRows(false);
+    }
   }, [token]);
 
-  // 4. Carga de filas (Puntos)
-  const loadRows = useCallback(
-    async (grupo?: string) => {
-      if (!token) return;
-      try {
-        setLoadingRows(true);
-        setError(null);
-        const grupoNormalizado = String(grupo ?? "").trim();
-        const response = await fetch("/api/puntos", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(
-            grupoNormalizado ? { grupo: grupoNormalizado } : {},
-          ),
-        });
-        const data = await response.json().catch(() => ({}));
-
-        if (!response.ok) {
-          const apiMsg =
-            typeof data?.error === "string"
-              ? data.error
-              : "Error al cargar puntos";
-          throw new Error(apiMsg);
-        }
-
-        const nextRows = Array.isArray(data?.data)
-          ? data.data
-          : Array.isArray(data?.rows)
-            ? data.rows
-            : [];
-
-        setRows(nextRows);
-      } catch (err: any) {
-        setRows([]);
-        setError(err?.message || "Error al cargar puntos");
-      } finally {
-        setLoadingRows(false);
-      }
-    },
-    [token],
-  );
-
   const handleMutationSuccess = useCallback(() => {
-    void loadRows(selectedGroup.trim());
-  }, [loadRows, selectedGroup]);
+    void loadRows();
+  }, [loadRows]);
 
   const loadTipoPuntos = useMemo(
     () => createTipoPuntoLoader(token || ""),
@@ -392,7 +352,7 @@ export default function PuntosPage() {
         ),
       },
     ],
-    [token, groups, handleMutationSuccess],
+    [token, loadTipoPuntos, handleMutationSuccess],
   ); // Se recalcula si cambian las filas
 
   const exportableColumns = useMemo(
@@ -422,14 +382,10 @@ export default function PuntosPage() {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Puntos");
 
-    const normalizedGroup = selectedGroup.trim();
-    const safeGroup = normalizedGroup
-      ? normalizedGroup.replace(/[^a-zA-Z0-9_-]+/g, "_")
-      : "todos";
-    const fileName = `puntos_${safeGroup}.xlsx`;
+    const fileName = "facilities.xlsx";
 
     XLSX.writeFile(workbook, fileName);
-  }, [rows, exportableColumns, selectedGroup]);
+  }, [rows, exportableColumns]);
 
   useEffect(() => {
     if (!token) return;
@@ -453,19 +409,6 @@ export default function PuntosPage() {
             Módulo de administración de facilities
           </p>
         </header>
-
-        <GrupoSelector
-          groups={groups}
-          selectedGroup={selectedGroup}
-          onSelectedGroupChange={(v) => setSelectedGroup(v)}
-          onSearch={() => {
-            void loadRows(selectedGroup.trim());
-          }}
-          onClear={handleLimpiarFiltros}
-          loadingGroups={loadingGroups}
-          loadingRows={loadingRows}
-          error={error}
-        />
 
         <div className="rounded-2xl border border-zinc-300 bg-white px-4 py-3 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
           <div className="mb-4 flex items-center gap-2">
