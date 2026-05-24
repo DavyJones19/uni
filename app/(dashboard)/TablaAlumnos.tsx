@@ -2,10 +2,7 @@
 // Capa fina: solo envuelve DataTablePriority con un <section> y clases.
 // Patrón "wrapper" — si mañana cambias la tabla interna, este archivo puede quedar igual.
 
-import {
-  DataTablePriority,
-  type ColumnDef,
-} from "./DataTablePriority";
+import { DataTablePriority, type ColumnDef } from "./DataTablePriority";
 
 // <TData extends Record<string, unknown>> = genérico: TData es "cualquier objeto fila"
 // que TypeScript puede comprobar (claves string → valores desconocidos).

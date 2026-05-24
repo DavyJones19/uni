@@ -268,7 +268,10 @@ export function DataTablePriority<TData extends Record<string, unknown>>({
                       ) : null}
                     </td>
                     {visibleColumns.map((col) => (
-                      <td key={col.id} className="px-3 py-2 align-top text-center">
+                      <td
+                        key={col.id}
+                        className="px-3 py-2 align-top text-center"
+                      >
                         {getCellValue(row, col)}
                       </td>
                     ))}
