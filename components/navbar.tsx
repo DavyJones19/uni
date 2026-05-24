@@ -210,14 +210,6 @@ export function Navbar() {
                   RUTAS
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem
-                asChild
-                className="focus:bg-slate-100 cursor-pointer text-slate-700 font-medium uppercase text-xs tracking-wider p-2"
-              >
-                <Link href="" className="w-full">
-                  VEHICULOS
-                </Link>
-              </DropdownMenuItem>
 
               <DropdownMenuItem
                 asChild
@@ -225,6 +217,14 @@ export function Navbar() {
               >
                 <Link href="/gestionar/facilities" className="w-full">
                   FACILITIES
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                asChild
+                className="focus:bg-slate-100 cursor-pointer text-slate-700 font-medium uppercase text-xs tracking-wider p-2"
+              >
+                <Link href="" className="w-full">
+                  VEHICULOS
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
