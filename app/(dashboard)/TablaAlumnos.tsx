@@ -13,6 +13,7 @@ type TablaAlumnosProps<TData extends Record<string, unknown>> = {
   columns: Array<ColumnDef<TData>>;
   data: TData[];
   emptyMessage?: string;
+  headerVariant?: "default" | "pill";
   pagination?: boolean;
   defaultPageSize?: number;
   pageSizeOptions?: number[];
@@ -23,6 +24,7 @@ export function TablaAlumnos<TData extends Record<string, unknown>>({
   columns,
   data,
   emptyMessage,
+  headerVariant,
   pagination,
   defaultPageSize,
   pageSizeOptions,
@@ -33,6 +35,7 @@ export function TablaAlumnos<TData extends Record<string, unknown>>({
         columns={columns}
         data={data}
         emptyMessage={emptyMessage}
+        headerVariant={headerVariant}
         pagination={pagination}
         defaultPageSize={defaultPageSize}
         pageSizeOptions={pageSizeOptions}

@@ -16,6 +16,7 @@ type DataTablePriorityProps<TData> = {
   columns: Array<ColumnDef<TData>>;
   data: TData[];
   emptyMessage?: string;
+  headerVariant?: "default" | "pill";
   /** Si es true (por defecto), solo se muestra un subconjunto de filas y la barra de paginación. */
   pagination?: boolean;
   /** Tamaño inicial de página; el usuario puede cambiarlo con el selector si hay opciones. */
@@ -59,6 +60,7 @@ export function DataTablePriority<TData extends Record<string, unknown>>({
   columns,
   data,
   emptyMessage = "Sin resultados.",
+  headerVariant = "default",
   pagination = true,
   defaultPageSize = 10,
   pageSizeOptions,
@@ -199,14 +201,37 @@ export function DataTablePriority<TData extends Record<string, unknown>>({
       className="w-full overflow-hidden rounded-lg border border-zinc-200 bg-white"
     >
       <table className="w-full border-collapse text-sm">
-        <thead className="bg-zinc-50 text-left text-zinc-600">
+        <thead
+          className={
+            headerVariant === "pill"
+              ? "bg-transparent text-left text-zinc-700"
+              : "bg-zinc-50 text-left text-zinc-600"
+          }
+        >
           <tr>
-            <th className="w-10 px-3 py-2" aria-label="Expandir" />
-            {visibleColumns.map((col) => (
-              <th key={col.id} className="px-3 py-2 font-medium">
-                {col.header}
-              </th>
-            ))}
+            <th
+              className={
+                headerVariant === "pill" ? "w-10 px-2 py-2" : "w-10 px-3 py-2"
+              }
+              aria-label="Expandir"
+            />
+            {visibleColumns.map((col) => {
+              if (headerVariant === "pill") {
+                return (
+                  <th key={col.id} className="px-2 py-2 font-semibold">
+                    <div className="rounded-md bg-zinc-300 px-3 py-2 text-center text-sm font-semibold text-zinc-700">
+                      {col.header}
+                    </div>
+                  </th>
+                );
+              }
+
+              return (
+                <th key={col.id} className="px-3 py-2 font-medium">
+                  {col.header}
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>
@@ -230,7 +255,7 @@ export function DataTablePriority<TData extends Record<string, unknown>>({
                 // Fragment evita un nodo extra en el DOM; key va en el Fragment en React 16+.
                 <React.Fragment key={rowId}>
                   <tr className="border-t border-zinc-200">
-                    <td className="px-3 py-2 align-top">
+                    <td className="px-3 py-2 align-top text-center">
                       {hasHidden ? (
                         <button
                           type="button"
@@ -243,7 +268,7 @@ export function DataTablePriority<TData extends Record<string, unknown>>({
                       ) : null}
                     </td>
                     {visibleColumns.map((col) => (
-                      <td key={col.id} className="px-3 py-2 align-top">
+                      <td key={col.id} className="px-3 py-2 align-top text-center">
                         {getCellValue(row, col)}
                       </td>
                     ))}
@@ -252,7 +277,7 @@ export function DataTablePriority<TData extends Record<string, unknown>>({
                     <tr className="border-t border-zinc-200 bg-zinc-50">
                       <td
                         colSpan={visibleColumns.length + 1}
-                        className="px-3 py-3"
+                        className="px-3 py-3 text-center"
                       >
                         <div
                           className={

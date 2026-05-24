@@ -376,7 +376,7 @@ export default function PuntosPage() {
         header: "Acciones",
         priority: 5,
         render: (row: RowData) => (
-          <div className="flex gap-1 -mx-2">
+          <div className="flex justify-center gap-1">
             <BotonEditar
               row={row}
               token={token || ""}
@@ -443,31 +443,31 @@ export default function PuntosPage() {
   //TERMINO
 
   return (
-    <div className="mx-auto w-full max-w-[96rem] px-4 py-8 flex flex-col gap-6 bg-white min-h-screen">
-      <header className="space-y-2 border-b pb-4">
-        <h1 className="text-2xl font-bold text-zinc-800">
-          Consulta de facilities
-        </h1>
-        <p className="text-sm text-zinc-500">
-          Módulo de administración de facilities
-        </p>
-      </header>
+    <main className="min-h-screen bg-[#f5f2e8] px-3 py-4 text-zinc-900 md:px-6">
+      <section className="mx-auto flex w-full max-w-[1560px] flex-col gap-4">
+        <header className="space-y-1 px-2">
+          <h1 className="text-[28px] font-semibold leading-none tracking-tight text-zinc-700">
+            Consulta de facilities
+          </h1>
+          <p className="text-sm text-zinc-500">
+            Módulo de administración de facilities
+          </p>
+        </header>
 
-      <GrupoSelector
-        groups={groups}
-        selectedGroup={selectedGroup}
-        onSelectedGroupChange={(v) => setSelectedGroup(v)}
-        onSearch={() => {
-          void loadRows(selectedGroup.trim());
-        }}
-        onClear={handleLimpiarFiltros}
-        loadingGroups={loadingGroups}
-        loadingRows={loadingRows}
-        error={error}
-      />
+        <GrupoSelector
+          groups={groups}
+          selectedGroup={selectedGroup}
+          onSelectedGroupChange={(v) => setSelectedGroup(v)}
+          onSearch={() => {
+            void loadRows(selectedGroup.trim());
+          }}
+          onClear={handleLimpiarFiltros}
+          loadingGroups={loadingGroups}
+          loadingRows={loadingRows}
+          error={error}
+        />
 
-      <section className="space-y-4">
-        <div className="bg-zinc-50 p-4 rounded-lg border">
+        <div className="rounded-2xl border border-zinc-300 bg-white px-4 py-3 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
           <div className="mb-4 flex items-center gap-2">
             <BotonInserta
               token={token || ""}
@@ -488,9 +488,9 @@ export default function PuntosPage() {
           <h2 className="text-lg font-semibold text-zinc-800 mb-4">
             Listado de Puntos
           </h2>
-          <TablaAlumnos columns={columns} data={rows} />
+          <TablaAlumnos columns={columns} data={rows} headerVariant="pill" />
         </div>
       </section>
-    </div>
+    </main>
   );
 }
