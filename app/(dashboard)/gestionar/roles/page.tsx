@@ -10,11 +10,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  GrupoSelector,
-  type GrupoOption,
-} from "@/app/(dashboard)/GrupoSelector";
-import { FacilityFormModal } from "../facilities/FacilityFormModal";
+import { RolesFormModal } from "../roles/RolesFormModal";
 import { TablaAlumnos } from "@/app/(dashboard)/TablaAlumnos";
 import { type ComboboxOption } from "@/components/ui/search-combobox";
 import { Button } from "@/components/ui/button";
@@ -112,7 +108,7 @@ function BotonEditar({
         Editar
       </button>
 
-      <FacilityFormModal
+      <RolesFormModal
         mode="edit"
         open={open}
         onOpenChange={setOpen}
@@ -145,7 +141,7 @@ function BotonInserta({
         + Agregar
       </button>
 
-      <FacilityFormModal
+      <RolesFormModal
         mode="insert"
         open={open}
         onOpenChange={setOpen}
@@ -178,7 +174,7 @@ function BotonEliminar({ row, token, onSuccess }: BotonEliminarProps) {
       setError(null);
 
       let datos = {
-        tl: "cat_puntos",
+        tl: "dhl_roles",
 
         id: row.id,
       };
@@ -230,11 +226,11 @@ function BotonEliminar({ row, token, onSuccess }: BotonEliminarProps) {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-[300px]">
           <DialogHeader>
-            <DialogTitle className="text-base">Eliminar facility</DialogTitle>
+            <DialogTitle className="text-base">Eliminar Rol</DialogTitle>
           </DialogHeader>
           <div className="py-2">
             <p className="text-sm text-muted-foreground">
-              ¿Estás seguro de que deseas eliminar la facility con ID{" "}
+              ¿Estás seguro de que deseas eliminar el rol con ID{" "}
               <strong>{row.id}</strong>?
             </p>
             {error && (
@@ -270,18 +266,10 @@ export default function RolesPage() {
   // 1. Estados para los datos (Extraídos de tu app/page.tsx)
   const [token, setToken] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
-  const [groups, setGroups] = useState<GrupoOption[]>([]);
-  const [selectedGroup, setSelectedGroup] = useState("");
+
   const [rows, setRows] = useState<RowData[]>([]);
-  const [loadingGroups, setLoadingGroups] = useState(false);
   const [loadingRows, setLoadingRows] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const handleLimpiarFiltros = () => {
-    setError(null);
-    setSelectedGroup("");
-    void loadRows();
-  };
 
   // 2. Recuperar el token (Si lo guardaste en localStorage o similar al loguear)
   useEffect(() => {
@@ -290,75 +278,48 @@ export default function RolesPage() {
     if (savedToken) setToken(savedToken);
   }, []);
 
-  // 3. Lógica de carga de grupos
-  useEffect(() => {
+  // 4. Carga de filas (Puntos)
+  const loadRows = useCallback(async () => {
     if (!token) return;
-    const loadGroups = async () => {
-      try {
-        setLoadingGroups(true);
-        const response = await fetch("/api/grupos", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!response.ok) throw new Error("Failed to load grupos");
-        const data = await response.json();
-        setGroups(Array.isArray(data?.data) ? data.data : []);
-      } catch (err) {
-        setError("Error al cargar grupos");
-      } finally {
-        setLoadingGroups(false);
+    try {
+      setLoadingRows(true);
+      setError(null);
+      const response = await fetch("/api/roles", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({}),
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        const apiMsg =
+          typeof data?.error === "string"
+            ? data.error
+            : "Error al cargar roles";
+        throw new Error(apiMsg);
       }
-    };
-    loadGroups();
+
+      const nextRows = Array.isArray(data?.data)
+        ? data.data
+        : Array.isArray(data?.rows)
+          ? data.rows
+          : [];
+
+      setRows(nextRows);
+    } catch (err: any) {
+      setRows([]);
+      setError(err?.message || "Error al cargar roles");
+    } finally {
+      setLoadingRows(false);
+    }
   }, [token]);
 
-  // 4. Carga de filas (Puntos)
-  const loadRows = useCallback(
-    async (grupo?: string) => {
-      if (!token) return;
-      try {
-        setLoadingRows(true);
-        setError(null);
-        const grupoNormalizado = String(grupo ?? "").trim();
-        const response = await fetch("/api/roles", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(
-            grupoNormalizado ? { grupo: grupoNormalizado } : {},
-          ),
-        });
-        const data = await response.json().catch(() => ({}));
-
-        if (!response.ok) {
-          const apiMsg =
-            typeof data?.error === "string"
-              ? data.error
-              : "Error al cargar puntos";
-          throw new Error(apiMsg);
-        }
-
-        const nextRows = Array.isArray(data?.data)
-          ? data.data
-          : Array.isArray(data?.rows)
-            ? data.rows
-            : [];
-
-        setRows(nextRows);
-      } catch (err: any) {
-        setRows([]);
-        setError(err?.message || "Error al cargar puntos");
-      } finally {
-        setLoadingRows(false);
-      }
-    },
-    [token],
-  );
-
   const handleMutationSuccess = useCallback(() => {
-    void loadRows(selectedGroup.trim());
-  }, [loadRows, selectedGroup]);
+    void loadRows();
+  }, [loadRows]);
 
   const loadTipoPuntos = useMemo(
     () => createTipoPuntoLoader(token || ""),
@@ -390,7 +351,7 @@ export default function RolesPage() {
         ),
       },
     ],
-    [token, groups, handleMutationSuccess],
+    [token, loadTipoPuntos, handleMutationSuccess],
   ); // Se recalcula si cambian las filas
 
   const exportableColumns = useMemo(
@@ -420,14 +381,10 @@ export default function RolesPage() {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Puntos");
 
-    const normalizedGroup = selectedGroup.trim();
-    const safeGroup = normalizedGroup
-      ? normalizedGroup.replace(/[^a-zA-Z0-9_-]+/g, "_")
-      : "todos";
-    const fileName = `puntos_${safeGroup}.xlsx`;
+    const fileName = "roles.xlsx";
 
     XLSX.writeFile(workbook, fileName);
-  }, [rows, exportableColumns, selectedGroup]);
+  }, [rows, exportableColumns]);
 
   useEffect(() => {
     if (!token) return;
@@ -448,19 +405,6 @@ export default function RolesPage() {
           Módulo de administración de roles
         </p>
       </header>
-
-      <GrupoSelector
-        groups={groups}
-        selectedGroup={selectedGroup}
-        onSelectedGroupChange={(v) => setSelectedGroup(v)}
-        onSearch={() => {
-          void loadRows(selectedGroup.trim());
-        }}
-        onClear={handleLimpiarFiltros}
-        loadingGroups={loadingGroups}
-        loadingRows={loadingRows}
-        error={error}
-      />
 
       <section className="space-y-4">
         <div className="bg-zinc-50 p-4 rounded-lg border">
