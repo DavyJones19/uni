@@ -182,7 +182,7 @@ export function Navbar() {
                 asChild
                 className="focus:bg-slate-100 cursor-pointer text-slate-700 font-medium uppercase text-xs tracking-wider p-2"
               >
-                <Link href="" className="w-full">
+                <Link href="/gestionar/users" className="w-full">
                   USUARIOS
                 </Link>
               </DropdownMenuItem>
