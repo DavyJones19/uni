@@ -194,14 +194,7 @@ export function Navbar() {
                   VEHICULOS
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem
-                asChild
-                className="focus:bg-slate-100 cursor-pointer text-slate-700 font-medium uppercase text-xs tracking-wider p-2"
-              >
-                <Link href="" className="w-full">
-                  CONDUCTORES
-                </Link>
-              </DropdownMenuItem>
+
               <DropdownMenuItem
                 asChild
                 className="focus:bg-slate-100 cursor-pointer text-slate-700 font-medium uppercase text-xs tracking-wider p-2"
@@ -216,6 +209,14 @@ export function Navbar() {
               >
                 <Link href="/gestionar/roles" className="w-full">
                   ROLES
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                asChild
+                className="focus:bg-slate-100 cursor-pointer text-slate-700 font-medium uppercase text-xs tracking-wider p-2"
+              >
+                <Link href="/gestionar/conductores" className="w-full">
+                  Conductores
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
