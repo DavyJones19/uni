@@ -22,7 +22,7 @@ type RowData = Record<string, any>;
 type BotonEditarProps = {
   row: RowData;
   token: string;
-  loadTipoPuntos: (query: string) => Promise<ComboboxOption[]>;
+  loadRoles: (query: string) => Promise<ComboboxOption[]>;
   onSuccess: (row: RowData, id: string | number) => void;
 };
 
@@ -35,7 +35,7 @@ type BotonEliminarProps = {
 interface BotonInsertarProps {
   token: string;
   disabled?: boolean;
-  loadTipoPuntos: (query: string) => Promise<ComboboxOption[]>;
+  loadRoles: (query: string) => Promise<ComboboxOption[]>;
   onSuccess: (idInsertado: string | number) => void;
 }
 
@@ -69,11 +69,11 @@ const loadComboGenerico = async (
   return Array.isArray(data?.data) ? data.data : [];
 };
 
-const createTipoPuntoLoader = (token: string) => {
+const createRolesLoader = (token: string) => {
   return async (query: string) => {
-    const options = (await loadComboGenerico(token, "cat_tipo_punto", [
+    const options = (await loadComboGenerico(token, "dhl_roles", [
       "id",
-      "tipo",
+      "rol",
     ])) as ComboboxOption[];
 
     const normalizedQuery = query.trim().toLowerCase();
@@ -93,7 +93,7 @@ const createTipoPuntoLoader = (token: string) => {
 function BotonEditar({
   row,
   token,
-  loadTipoPuntos,
+  loadRoles,
   onSuccess,
 }: BotonEditarProps) {
   const [open, setOpen] = useState(false);
@@ -113,7 +113,7 @@ function BotonEditar({
         open={open}
         onOpenChange={setOpen}
         token={token}
-        loadTipoPuntos={loadTipoPuntos}
+        loadRoles={loadRoles}
         row={row}
         onSuccess={(id) => onSuccess(row, id)}
       />
@@ -122,10 +122,10 @@ function BotonEditar({
 }
 
 //COMPONENTE BOTON INSERTAR
-function BotonInserta({
+function BotonInsertar({
   token,
   disabled,
-  loadTipoPuntos,
+  loadRoles,
   onSuccess,
 }: BotonInsertarProps) {
   const [open, setOpen] = useState(false);
@@ -146,7 +146,7 @@ function BotonInserta({
         open={open}
         onOpenChange={setOpen}
         token={token}
-        loadTipoPuntos={loadTipoPuntos}
+        loadRoles={loadRoles} // Reutilizamos el mismo loader de roles, o crea otro específico si es necesario
         onSuccess={(id) => onSuccess(id)}
       />
     </>
@@ -320,8 +320,8 @@ export default function PuntosPage() {
     void loadRows();
   }, [loadRows]);
 
-  const loadTipoPuntos = useMemo(
-    () => createTipoPuntoLoader(token || ""),
+  const loadRoles = useMemo(
+    () => createRolesLoader(token || ""),
     [token],
   );
 
@@ -340,7 +340,7 @@ export default function PuntosPage() {
             <BotonEditar
               row={row}
               token={token || ""}
-              loadTipoPuntos={loadTipoPuntos}
+              loadRoles={loadRoles}
               onSuccess={handleMutationSuccess}
             />
             <BotonEliminar
@@ -352,7 +352,7 @@ export default function PuntosPage() {
         ),
       },
     ],
-    [token, loadTipoPuntos, handleMutationSuccess],
+    [token, loadRoles, handleMutationSuccess],
   ); // Se recalcula si cambian las filas
 
   const exportableColumns = useMemo(
@@ -412,10 +412,10 @@ export default function PuntosPage() {
 
         <div className="rounded-2xl border border-zinc-300 bg-white px-4 py-3 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
           <div className="mb-4 flex items-center gap-2">
-            <BotonInserta
+            <BotonInsertar
               token={token || ""}
               disabled={loadingRows}
-              loadTipoPuntos={loadTipoPuntos}
+              loadRoles={loadRoles}
               onSuccess={handleMutationSuccess}
             />
             <Button

@@ -1,0 +1,17 @@
+USE [TALENTOS_JUVENIL]
+GO
+/****** Object:  StoredProcedure [dbo].[ObtenerUsuarioPorLogin]    Script Date: 24/05/2026 08:49:10 p. m. ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROCEDURE [dbo].[ObtenerUsuarioPorLogin]
+    @Usuario NVARCHAR(100)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT ID, PWD 
+    FROM DHL_USERS 
+    WHERE USUARIO = @Usuario;
+END

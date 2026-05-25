@@ -1,4 +1,10 @@
 CAT_TIPO_PUNTO
 CAT_PUNTOS
 DHL_ROLES
-CAT_USER
+dhl_users
+DHL_CONDUCTORES
+
+
+
+PROCEDURE
+[ObtenerUsuarioPorLogin]

@@ -1,122 +1,156 @@
 "use client";
 
 import * as React from "react";
-
 import { Input } from "@/components/ui/input";
 import {
   SearchCombobox,
   type ComboboxOption,
 } from "@/components/ui/search-combobox";
 import { FormModalShell } from "@/components/ui/form-modal-shell";
+import { bankPasswordSchema } from "@/lib/passwordValidation";
+import PasswordStrengthIndicator from "@/components/ui/passwordStrength/passwordStrengthIndicator";
 
 type RowData = Record<string, any>;
 
 type UsersFormMode = "edit" | "insert";
 
-type FormFieldConfig = {
-  key: string;
-  render: () => React.ReactNode;
-};
 
-type ValidationRule = {
-  key: string;
-  isInvalid: () => boolean;
-  message: string;
-};
-
-type SubmitConfig = {
-  endpoint: string;
-  buildBody: () => Record<string, unknown>;
-  successId: (responseData: any) => string | number | null;
-  resetAfterSuccess: boolean;
-};
-
-type ModeConfig = {
-  title: string;
-  submitLabel: string;
-  fields: FormFieldConfig[];
-  validationRules: ValidationRule[];
-  submit: SubmitConfig;
-};
 
 type UsersFormModalProps = {
   mode: UsersFormMode;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   token: string;
-  loadTipoPuntos: (query: string) => Promise<ComboboxOption[]>;
+  loadRoles: (query: string) => Promise<ComboboxOption[]>;
   row?: RowData;
   onSuccess: (id: string | number) => void;
 };
+
+
+
 
 export function UsersFormModal({
   mode,
   open,
   onOpenChange,
   token,
-  loadTipoPuntos,
+  loadRoles,
   row,
   onSuccess,
 }: UsersFormModalProps) {
   const isEditMode = mode === "edit";
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [valorNOMBRE, setValorNOMBRE] = React.useState("");
-  const [valorTipo, setValorTipo] = React.useState("");
-  const [valorTipoId, setValorTipoId] = React.useState("");
-  const [valorLATTITUDE, setValorLATTITUDE] = React.useState("");
-  const [valorLONGITUDE, setValorLONGITUDE] = React.useState("");
 
+  // Estados del formulario
+  const [nombreCompleto, setNombreCompleto] = React.useState("");
+  const [perfil, setPerfil] = React.useState("");
+  const [perfilId, setPerfilId] = React.useState("");
+  const [usuario, setUsuario] = React.useState("");
+  const [pwd, setPwd] = React.useState("");
+  const [pwdConfirm, setPwdConfirm] = React.useState("");
+  const [pwdError, setPwdError] = React.useState<string | null>(null);
+  const [showPwdStrength, setShowPwdStrength] = React.useState(false);
+
+  // Cargar datos en modo edición
   React.useEffect(() => {
     if (!open) return;
 
-    if (isEditMode) {
-      setValorNOMBRE(String(row?.NOMBRE || ""));
-      setValorTipo(String(row?.TIPO || ""));
-      setValorTipoId(
-        String(
-          row?.id_tipo_punto || row?.ID_TIPO_PUNTO || row?.idTipoPunto || "",
-        ),
-      );
-      setValorLATTITUDE(String(row?.LATTITUDE || ""));
-      setValorLONGITUDE(String(row?.LONGITUDE || ""));
+    if (isEditMode && row) {
+      setNombreCompleto(String(row.NOMBRECOMPLETO ?? row.nombre_completo ?? ""));
+      setPerfil(String(row.PERFIL ?? row.perfil ?? ""));
+      setPerfilId(String(row.ID_PERFIL ?? row.id_perfil ?? row.idPerfil ?? ""));
+      setUsuario(String(row.USUARIO ?? row.usuario ?? ""));
+      setPwd(""); // No mostrar pwd en edición
+      setPwdConfirm("");
+      setPwdError(null);
+      setShowPwdStrength(false);
+    } else {
+      setNombreCompleto("");
+      setPerfil("");
+      setPerfilId("");
+      setUsuario("");
+      setPwd("");
+      setPwdConfirm("");
+      setPwdError(null);
+      setShowPwdStrength(false);
+    }
+  }, [open, isEditMode, row]);
+
+  // Validar contraseña en tiempo real
+  const handlePwdChange = React.useCallback((newPwd: string) => {
+    console.log("handlePwdChange called:", newPwd); // DEBUG
+    setPwd(newPwd);
+    setShowPwdStrength(newPwd.length > 0);
+    
+    if (newPwd.length === 0) {
+      setPwdError(null);
       return;
     }
 
-    setValorNOMBRE("");
-    setValorTipo("");
-    setValorTipoId("");
-    setValorLATTITUDE("");
-    setValorLONGITUDE("");
-  }, [open, isEditMode, row]);
+    const validation = bankPasswordSchema.safeParse(newPwd);
+    if (!validation.success) {
+      const firstError = validation.error.issues[0];
+      setPwdError(firstError?.message || "Contraseña inválida");
+    } else {
+      setPwdError(null);
+    }
+  }, []);
 
-  const tipoPuntoField = (label: string) => (
+  // Renderizado del campo de contraseña
+  const renderPwdField = () => (
+    <div className="space-y-2">
+      <div>
+        <label className="text-xs font-semibold text-muted-foreground uppercase">
+          Contraseña
+        </label>
+        <Input
+          type="password"
+          value={pwd}
+          onChange={(e) => {
+            console.log("Input onChange:", e.target.value); // DEBUG
+            handlePwdChange(e.target.value);
+          }}
+          placeholder={isEditMode ? "Dejar vacío para no cambiar" : "Contraseña"}
+          disabled={loading}
+          className="text-xs h-8 mt-1"
+          autoComplete="new-password"
+        />
+      </div>
+      {pwd && <PasswordStrengthIndicator password={pwd} />}
+      {pwdError && (
+        <p className="text-xs text-red-500 font-medium">{pwdError}</p>
+      )}
+    </div>
+  );
+  const perfilCombo = (label: string) => (
     <SearchCombobox
       label={label}
-      value={valorTipo}
+      value={perfil}
       options={[]}
-      loadOptions={loadTipoPuntos}
+      loadOptions={loadRoles}
       onValueChange={(text) => {
-        setValorTipo(text);
-        setValorTipoId("");
+        setPerfil(text);
+        setPerfilId("");
       }}
       onSelect={(option) => {
-        setValorTipo(option.label);
-        setValorTipoId(option.id);
+        setPerfil(option.label);
+        setPerfilId(option.id);
       }}
-      placeholder="Escribe o selecciona un tipo"
+      placeholder="Escribe o selecciona un perfil"
       disabled={loading}
       inputClassName="h-8 text-xs"
       loading={loading}
-      loadingText="Cargando tipos..."
-      emptyText="No hay tipos disponibles."
+      loadingText="Cargando perfiles..."
+      emptyText="No hay perfiles disponibles."
       noResultsText="No hay coincidencias."
     />
   );
 
-  const modeConfig: ModeConfig = isEditMode
+  // Configuración por modo
+  const modeConfig = isEditMode
     ? {
-        title: "Editar Punto",
+        title: "Editar Usuario",
         submitLabel: "Confirmar",
         fields: [
           {
@@ -130,161 +164,153 @@ export function UsersFormModal({
             ),
           },
           {
-            key: "nombre",
+            key: "nombreCompleto",
             render: () => (
               <Input
-                value={valorNOMBRE}
-                onChange={(e) => setValorNOMBRE(e.target.value)}
-                placeholder="Nombre"
+                value={nombreCompleto}
+                onChange={(e) => setNombreCompleto(e.target.value)}
+                placeholder="Nombre completo"
                 disabled={loading}
                 className="text-xs h-8"
               />
             ),
           },
           {
-            key: "tipo",
-            render: () => tipoPuntoField("Tipo de punto"),
+            key: "perfil",
+            render: () => perfilCombo("Perfil"),
           },
           {
-            key: "latitud",
+            key: "usuario",
             render: () => (
               <Input
-                value={valorLATTITUDE}
-                onChange={(e) => setValorLATTITUDE(e.target.value)}
-                placeholder="Latitud"
+                value={usuario}
+                onChange={(e) => setUsuario(e.target.value)}
+                placeholder="Usuario"
                 disabled={loading}
                 className="text-xs h-8"
               />
             ),
           },
           {
-            key: "longitud",
-            render: () => (
-              <Input
-                value={valorLONGITUDE}
-                onChange={(e) => setValorLONGITUDE(e.target.value)}
-                placeholder="Longitud"
-                disabled={loading}
-                className="text-xs h-8"
-              />
-            ),
+            key: "pwd",
+            render: () => renderPwdField(),
           },
         ],
         validationRules: [
           {
-            key: "nombre",
-            isInvalid: () => !valorNOMBRE,
-            message: "El nombre del punto es obligatorio.",
+            key: "nombreCompleto",
+            isInvalid: () => !nombreCompleto.trim(),
+            message: "El nombre completo es obligatorio.",
           },
           {
-            key: "tipo",
-            isInvalid: () => !valorTipoId,
-            message: "Selecciona un tipo de punto de la lista.",
+            key: "perfil",
+            isInvalid: () => !perfilId,
+            message: "Selecciona un perfil de la lista.",
           },
           {
-            key: "latitud",
-            isInvalid: () => !valorLATTITUDE || isNaN(Number(valorLATTITUDE)),
-            message: "La latitud es obligatoria y debe ser un número válido.",
+            key: "usuario",
+            isInvalid: () => !usuario.trim(),
+            message: "El usuario es obligatorio.",
           },
           {
-            key: "longitud",
-            isInvalid: () => !valorLONGITUDE || isNaN(Number(valorLONGITUDE)),
-            message: "La longitud es obligatoria y debe ser un número válido.",
+            key: "pwd",
+            isInvalid: () => {
+              // En edición: pwd es opcional, solo validar si hay cambio
+              if (!pwd.trim()) return false; // Permitir campo vacío
+              const validation = bankPasswordSchema.safeParse(pwd);
+              return !validation.success;
+            },
+            message: pwdError || "La contraseña no cumple los requisitos de seguridad.",
           },
         ],
         submit: {
           endpoint: "/api/editar",
           buildBody: () => ({
-            tl: "cat_puntos",
-            lattitude: Number(valorLATTITUDE),
+            tl: "DHL_USERS",
             id: row?.id,
-            name: valorNOMBRE,
-            tipo: valorTipo,
-            id_tipo_punto: Number(valorTipoId),
-            longitud: Number(valorLONGITUDE),
+            nombre_completo: nombreCompleto,
+            id_perfil: Number(perfilId),
+            usuario: usuario,
+            pwd: pwd,
           }),
-          successId: (responseData) => responseData?.id ?? row?.id ?? null,
+          successId: (responseData: any) => responseData?.id ?? row?.id ?? null,
           resetAfterSuccess: false,
         },
       }
     : {
-        title: "Agregar Punto",
+        title: "Agregar Usuario",
         submitLabel: "Agregar",
         fields: [
           {
-            key: "tipo",
-            render: () => tipoPuntoField("Tipo de punto"),
-          },
-          {
-            key: "nombre",
+            key: "nombreCompleto",
             render: () => (
               <Input
-                value={valorNOMBRE}
-                onChange={(e) => setValorNOMBRE(e.target.value)}
-                placeholder="Nombre"
+                value={nombreCompleto}
+                onChange={(e) => setNombreCompleto(e.target.value)}
+                placeholder="Nombre completo"
                 disabled={loading}
                 className="text-xs h-8"
               />
             ),
           },
           {
-            key: "latitud",
+            key: "perfil",
+            render: () => perfilCombo("Perfil"),
+          },
+          {
+            key: "usuario",
             render: () => (
               <Input
-                value={valorLATTITUDE}
-                onChange={(e) => setValorLATTITUDE(e.target.value)}
-                placeholder="Latitud"
+                value={usuario}
+                onChange={(e) => setUsuario(e.target.value)}
+                placeholder="Usuario"
                 disabled={loading}
                 className="text-xs h-8"
               />
             ),
           },
           {
-            key: "longitud",
-            render: () => (
-              <Input
-                value={valorLONGITUDE}
-                onChange={(e) => setValorLONGITUDE(e.target.value)}
-                placeholder="Longitud"
-                disabled={loading}
-                className="text-xs h-8"
-              />
-            ),
+            key: "pwd",
+            render: () => renderPwdField(),
           },
         ],
         validationRules: [
           {
-            key: "nombre",
-            isInvalid: () => !valorNOMBRE,
-            message: "El nombre del punto es obligatorio.",
+            key: "nombreCompleto",
+            isInvalid: () => !nombreCompleto.trim(),
+            message: "El nombre completo es obligatorio.",
           },
           {
-            key: "tipo",
-            isInvalid: () => !valorTipoId,
-            message: "Selecciona un tipo de punto de la lista.",
+            key: "perfil",
+            isInvalid: () => !perfilId,
+            message: "Selecciona un perfil de la lista.",
           },
           {
-            key: "latitud",
-            isInvalid: () => !valorLATTITUDE || isNaN(Number(valorLATTITUDE)),
-            message: "La latitud es obligatoria y debe ser un número válido.",
+            key: "usuario",
+            isInvalid: () => !usuario.trim(),
+            message: "El usuario es obligatorio.",
           },
           {
-            key: "longitud",
-            isInvalid: () => !valorLONGITUDE || isNaN(Number(valorLONGITUDE)),
-            message: "La longitud es obligatoria y debe ser un número válido.",
+            key: "pwd",
+            isInvalid: () => {
+              // En inserción: pwd es obligatorio y debe ser válido
+              if (!pwd.trim()) return true;
+              const validation = bankPasswordSchema.safeParse(pwd);
+              return !validation.success;
+            },
+            message: pwdError || "La contraseña no cumple los requisitos de seguridad.",
           },
         ],
         submit: {
           endpoint: "/api/insertar",
           buildBody: () => ({
-            tl: "cat_puntos",
-            name: valorNOMBRE,
-            tipo: valorTipo,
-            id_tipo_punto: Number(valorTipoId),
-            lattitude: Number(valorLATTITUDE),
-            longitud: Number(valorLONGITUDE),
+            tl: "DHL_USERS",
+            nombre_completo: nombreCompleto,
+            perfil: Number(perfilId),
+            usuario: usuario,
+            pwd: pwd,
           }),
-          successId: (responseData) => responseData?.id ?? null,
+          successId: (responseData: any) => responseData?.id ?? null,
           resetAfterSuccess: true,
         },
       };
@@ -297,18 +323,27 @@ export function UsersFormModal({
       setError(invalidRule.message);
       return false;
     }
-
     return true;
   };
 
   const handleSubmit = async () => {
-    if (!validateFields()) {
-      return;
-    }
+    if (!validateFields()) return;
 
     try {
       setLoading(true);
       setError(null);
+
+      // Paso 1: Actualizar datos del usuario (sin contraseña)
+      const userDataBody = {
+        ...submit.buildBody(),
+        // No incluir pwd aquí, se manejará por separado
+      };
+      
+      // En modo insert, incluir la contraseña en el cuerpo inicial
+      // En modo edit, solo enviar si hay cambio de contraseña
+      if (isEditMode && pwd) {
+        delete userDataBody.pwd;
+      }
 
       const response = await fetch(submit.endpoint, {
         method: "POST",
@@ -316,7 +351,7 @@ export function UsersFormModal({
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(submit.buildBody()),
+        body: JSON.stringify(userDataBody),
       });
 
       const resData = await response.json().catch(() => ({}));
@@ -324,28 +359,57 @@ export function UsersFormModal({
       if (!response.ok) {
         const apiMsg =
           typeof resData?.error === "string" ? resData.error : null;
-        throw new Error(apiMsg || "Error en la inserción.");
+        throw new Error(apiMsg || "Error al guardar los datos del usuario.");
       }
 
-      if (!submit.resetAfterSuccess) {
-        const modifiedId = submit.successId(resData);
-        onOpenChange(false);
-        onSuccess(modifiedId ?? "");
-        return;
+      const resultId = submit.successId(resData);
+      if (!resultId) {
+        throw new Error("No se recibió el ID del registro.");
       }
 
-      const insertedId = submit.successId(resData);
-      if (!insertedId) {
-        throw new Error("No se recibió el id del registro insertado.");
+      // Paso 2: Si hay contraseña nueva y estamos en modo edit, cambiarla por el endpoint seguro
+      if (isEditMode && pwd && pwd.trim()) {
+        const pwdValidation = bankPasswordSchema.safeParse(pwd);
+        if (pwdValidation.success) {
+          const pwdResponse = await fetch("/api/change-password", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              userId: resultId,
+              password: pwd,
+            }),
+          });
+
+          const pwdData = await pwdResponse.json().catch(() => ({}));
+          
+          if (!pwdResponse.ok) {
+            console.error("[WARN] Error cambio de contraseña:", pwdData.error);
+            // No fallar la operación completa, pero notificar al usuario
+            setError(`Usuario guardado, pero error al cambiar contraseña: ${pwdData.error}`);
+          }
+        }
       }
 
-      setValorNOMBRE("");
-      setValorLATTITUDE("");
-      setValorLONGITUDE("");
-      setValorTipo("");
-      setValorTipoId("");
+      // Paso 3: Limpiar y cerrar
+      if (submit.resetAfterSuccess) {
+        setNombreCompleto("");
+        setPerfil("");
+        setPerfilId("");
+        setUsuario("");
+        setPwd("");
+        setPwdConfirm("");
+      }
+
+      // Limpiar contraseña siempre por seguridad
+      setPwd("");
+      setPwdConfirm("");
+      setPwdError(null);
+
       onOpenChange(false);
-      onSuccess(insertedId);
+      onSuccess(resultId);
     } catch (err: any) {
       setError(err.message);
     } finally {
