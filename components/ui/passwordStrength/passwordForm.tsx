@@ -2,8 +2,12 @@
 "use client";
 
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { bankPasswordSchema } from "@/lib/passwordValidation";
+import PasswordStrengthIndicator from "@/components/ui/passwordStrength/passwordStrengthIndicator";
+
+type PasswordFormValues = {
+  password: string;
+};
 
 export default function PasswordForm() {
   const {
@@ -11,16 +15,18 @@ export default function PasswordForm() {
     handleSubmit,
     formState: { errors },
     watch,
-  } = useForm({
-    resolver: zodResolver(bankPasswordSchema),
+  } = useForm<PasswordFormValues>({
     mode: "onChange", // Validación en tiempo real
+    defaultValues: {
+      password: "",
+    },
   });
 
   const password = watch("password");
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: PasswordFormValues) => {
     // Enviar al servidor
-    const response = await fetch("/api/auth/set-password", {
+    await fetch("/api/auth/set-password", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -33,12 +39,18 @@ export default function PasswordForm() {
         <label>Nueva Contraseña</label>
         <input
           type="password"
-          {...register("password")}
+          {...register("password", {
+            validate: (value) => {
+              const result = bankPasswordSchema.safeParse(value);
+              if (result.success) return true;
+              return result.error.issues[0]?.message || "Contraseña inválida";
+            },
+          })}
           className="border p-2 rounded w-full"
           autoComplete="new-password"
         />
         {errors.password && (
-          <p className="text-red-500 text-sm">{errors.password.message}</p>
+          <p className="text-red-500 text-sm">{String(errors.password.message)}</p>
         )}
       </div>
 

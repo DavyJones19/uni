@@ -334,14 +334,13 @@ export function UsersFormModal({
       setError(null);
 
       // Paso 1: Actualizar datos del usuario (sin contraseña)
-      const userDataBody = {
+      const userDataBody: Record<string, any> = {
         ...submit.buildBody(),
-        // No incluir pwd aquí, se manejará por separado
       };
       
       // En modo insert, incluir la contraseña en el cuerpo inicial
       // En modo edit, solo enviar si hay cambio de contraseña
-      if (isEditMode && pwd) {
+      if (isEditMode) {
         delete userDataBody.pwd;
       }
 
